@@ -1,0 +1,2173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CITYLE — A Global Geography Guessing Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Bebas+Neue&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-1: #0a0e27;
+    --bg-2: #1a0b2e;
+    --bg-3: #16213e;
+    --accent-1: #00d4ff;
+    --accent-2: #ff006e;
+    --accent-3: #8338ec;
+    --accent-4: #ffbe0b;
+    --match: #06ffa5;
+    --close: #ffbe0b;
+    --miss: rgba(255, 255, 255, 0.08);
+    --text: #ffffff;
+    --text-dim: rgba(255, 255, 255, 0.6);
+    --text-faint: rgba(255, 255, 255, 0.35);
+    --glass: rgba(255, 255, 255, 0.06);
+    --glass-strong: rgba(255, 255, 255, 0.12);
+    --glass-border: rgba(255, 255, 255, 0.12);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Space Grotesk', sans-serif;
+    color: var(--text);
+    min-height: 100vh;
+    background: var(--bg-1);
+    overflow-x: hidden;
+    position: relative;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  /* Animated gradient background */
+  .bg-gradient {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(131, 56, 236, 0.35) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, rgba(255, 0, 110, 0.25) 0%, transparent 50%),
+      radial-gradient(ellipse at 60% 80%, rgba(0, 212, 255, 0.25) 0%, transparent 50%),
+      radial-gradient(ellipse at 10% 90%, rgba(255, 190, 11, 0.15) 0%, transparent 50%),
+      linear-gradient(135deg, var(--bg-1), var(--bg-2), var(--bg-3));
+    background-size: 200% 200%;
+    animation: gradientShift 20s ease infinite;
+  }
+
+  @keyframes gradientShift {
+    0%, 100% { background-position: 0% 0%; }
+    50% { background-position: 100% 100%; }
+  }
+
+  /* Starfield */
+  .stars {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .star {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    animation: twinkle var(--dur, 3s) ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.2; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.4); }
+  }
+
+  /* Floating orbs */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.4;
+    z-index: 0;
+    pointer-events: none;
+  }
+
+  .orb-1 { width: 500px; height: 500px; background: var(--accent-3); top: -10%; left: -10%; animation: float1 25s ease-in-out infinite; }
+  .orb-2 { width: 400px; height: 400px; background: var(--accent-2); bottom: -10%; right: -10%; animation: float2 30s ease-in-out infinite; }
+  .orb-3 { width: 350px; height: 350px; background: var(--accent-1); top: 40%; right: 20%; animation: float3 28s ease-in-out infinite; }
+
+  @keyframes float1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33% { transform: translate(100px, 80px) scale(1.1); }
+    66% { transform: translate(50px, -50px) scale(0.95); }
+  }
+  @keyframes float2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-120px, -80px) scale(1.15); }
+  }
+  @keyframes float3 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    50% { transform: translate(-80px, 60px) scale(0.9); }
+  }
+
+  .container {
+    max-width: 1320px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+  }
+
+  /* Header */
+  header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+    animation: fadeDown 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes fadeDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .tag-line {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: var(--accent-1);
+    padding: 0.5rem 1.25rem;
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 100px;
+    margin-bottom: 1.25rem;
+  }
+
+  .tag-line::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    background: var(--match);
+    border-radius: 50%;
+    box-shadow: 0 0 10px var(--match);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(4rem, 12vw, 8rem);
+    line-height: 0.9;
+    letter-spacing: -0.01em;
+    background: linear-gradient(135deg, #ffffff 0%, #00d4ff 40%, #8338ec 70%, #ff006e 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    filter: drop-shadow(0 0 30px rgba(131, 56, 236, 0.5));
+    margin-bottom: 0.25rem;
+  }
+
+  .subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  /* Glass panel base */
+  .glass {
+    background: var(--glass);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid var(--glass-border);
+    border-radius: 16px;
+  }
+
+  /* Status bar */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.25rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .status-bar .label { color: var(--text-faint); margin-right: 0.5rem; }
+
+  .guesses-count {
+    color: var(--accent-1);
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+
+  #status-text { color: var(--text-dim); }
+
+  /* Input */
+  .input-section {
+    display: flex;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+  }
+
+  #guess-input {
+    flex: 1;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 1.15rem;
+    font-weight: 500;
+    padding: 1.1rem 1.5rem;
+    background: var(--glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    color: var(--text);
+    outline: none;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    letter-spacing: 0.01em;
+  }
+
+  #guess-input:focus {
+    background: var(--glass-strong);
+    border-color: var(--accent-1);
+    box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.15), 0 8px 32px rgba(0, 212, 255, 0.2);
+  }
+
+  #guess-input::placeholder { color: var(--text-faint); }
+
+  #submit-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 0 2.25rem;
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+    color: white;
+    border: none;
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
+  }
+
+  #submit-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--accent-2), var(--accent-4));
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  #submit-btn span { position: relative; z-index: 1; }
+
+  #submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(255, 0, 110, 0.4);
+  }
+
+  #submit-btn:hover:not(:disabled)::before { opacity: 1; }
+
+  #submit-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* Autocomplete */
+  .autocomplete {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 140px;
+    background: rgba(16, 20, 45, 0.95);
+    backdrop-filter: blur(24px) saturate(150%);
+    -webkit-backdrop-filter: blur(24px) saturate(150%);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 10;
+    display: none;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  }
+
+  .autocomplete.show { display: block; }
+
+  .autocomplete-item {
+    padding: 0.75rem 1.25rem;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background 0.15s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .autocomplete-item:last-child { border-bottom: none; }
+
+  .autocomplete-item:hover,
+  .autocomplete-item.active {
+    background: linear-gradient(90deg, rgba(0, 212, 255, 0.15), rgba(131, 56, 236, 0.15));
+  }
+
+  .autocomplete-item .country-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    color: var(--text-faint);
+    text-transform: uppercase;
+  }
+
+  .error-msg {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--accent-2);
+    margin-bottom: 1.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    min-height: 1rem;
+    padding-left: 0.5rem;
+  }
+
+  /* Category headers */
+  .category-headers {
+    display: grid;
+    grid-template-columns: 1.5fr repeat(8, 1fr);
+    gap: 6px;
+    margin-bottom: 0.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  .category-headers div {
+    text-align: center;
+    padding: 0.75rem 0.3rem;
+    line-height: 1.1;
+    position: relative;
+    cursor: help;
+    transition: color 0.2s;
+  }
+
+  .category-headers div:first-child {
+    text-align: left;
+    padding-left: 0.75rem;
+    cursor: default;
+  }
+
+  .category-headers div[data-tooltip]:hover {
+    color: var(--accent-1);
+  }
+
+  .category-headers div[data-tooltip]::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 14, 39, 0.98);
+    backdrop-filter: blur(20px);
+    color: white;
+    padding: 0.7rem 1rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 400;
+    letter-spacing: 0.03em;
+    text-transform: none;
+    white-space: normal;
+    width: max-content;
+    max-width: 280px;
+    text-align: center;
+    line-height: 1.5;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 20;
+    border-radius: 10px;
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+
+  .category-headers div[data-tooltip]:hover::after {
+    opacity: 1;
+  }
+
+  /* Guess rows */
+  .guesses {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .guess-row {
+    display: grid;
+    grid-template-columns: 1.5fr repeat(8, 1fr);
+    gap: 6px;
+    animation: rowEnter 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes rowEnter {
+    from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .guess-name {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.03));
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    letter-spacing: 0.03em;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 100px;
+    color: var(--text);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .guess-name .city-country {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-top: 2px;
+    font-weight: 400;
+  }
+
+  .cell {
+    height: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    text-align: center;
+    line-height: 1.2;
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    position: relative;
+    overflow: hidden;
+    animation: flipIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .cell:nth-child(2) { animation-delay: 0.08s; }
+  .cell:nth-child(3) { animation-delay: 0.16s; }
+  .cell:nth-child(4) { animation-delay: 0.24s; }
+  .cell:nth-child(5) { animation-delay: 0.32s; }
+  .cell:nth-child(6) { animation-delay: 0.40s; }
+  .cell:nth-child(7) { animation-delay: 0.48s; }
+  .cell:nth-child(8) { animation-delay: 0.56s; }
+  .cell:nth-child(9) { animation-delay: 0.64s; }
+
+  @keyframes flipIn {
+    0% { transform: rotateY(180deg); opacity: 0; }
+    100% { transform: rotateY(0); opacity: 1; }
+  }
+
+  .cell.match {
+    background: linear-gradient(135deg, rgba(6, 255, 165, 0.25), rgba(6, 255, 165, 0.1));
+    border-color: rgba(6, 255, 165, 0.5);
+    color: var(--match);
+    box-shadow: 0 0 20px rgba(6, 255, 165, 0.3), inset 0 0 20px rgba(6, 255, 165, 0.1);
+  }
+
+  .cell.close {
+    background: linear-gradient(135deg, rgba(255, 190, 11, 0.25), rgba(255, 190, 11, 0.1));
+    border-color: rgba(255, 190, 11, 0.5);
+    color: var(--close);
+    box-shadow: 0 0 15px rgba(255, 190, 11, 0.2), inset 0 0 15px rgba(255, 190, 11, 0.08);
+  }
+
+  .cell.miss {
+    background: var(--miss);
+    color: var(--text-faint);
+  }
+
+  .cell .icon {
+    font-size: 1.3rem;
+    margin-bottom: 3px;
+    line-height: 1;
+  }
+
+  .cell .value {
+    font-size: 0.72rem;
+    line-height: 1.2;
+  }
+
+  .cell .arrow {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    opacity: 0.9;
+    font-family: 'Bebas Neue', sans-serif;
+  }
+
+  .cell .arrow.up { color: var(--accent-1); text-shadow: 0 0 8px var(--accent-1); }
+  .cell .arrow.down { color: var(--accent-2); text-shadow: 0 0 8px var(--accent-2); }
+
+  /* Banner (win / lose) */
+  .banner-wrap { margin-top: 1.5rem; }
+
+  .win-banner,
+  .lose-banner {
+    padding: 2.5rem 2rem;
+    text-align: center;
+    border-radius: 20px;
+    position: relative;
+    overflow: hidden;
+    animation: bannerEnter 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes bannerEnter {
+    from { opacity: 0; transform: translateY(30px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .win-banner {
+    background:
+      radial-gradient(ellipse at center, rgba(6, 255, 165, 0.25) 0%, transparent 70%),
+      linear-gradient(135deg, rgba(6, 255, 165, 0.15), rgba(0, 212, 255, 0.1));
+    border: 1px solid rgba(6, 255, 165, 0.4);
+    box-shadow: 0 0 60px rgba(6, 255, 165, 0.25);
+  }
+
+  .lose-banner {
+    background:
+      radial-gradient(ellipse at center, rgba(255, 0, 110, 0.25) 0%, transparent 70%),
+      linear-gradient(135deg, rgba(255, 0, 110, 0.15), rgba(131, 56, 236, 0.1));
+    border: 1px solid rgba(255, 0, 110, 0.4);
+    box-shadow: 0 0 60px rgba(255, 0, 110, 0.25);
+  }
+
+  .banner-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(2.5rem, 6vw, 4rem);
+    letter-spacing: 0.02em;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #ffffff, #00d4ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .lose-banner .banner-title {
+    background: linear-gradient(135deg, #ffffff, #ff006e);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .banner-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+
+  .banner-text strong {
+    color: var(--accent-4);
+    font-weight: 700;
+  }
+
+  .banner-actions {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .banner-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 0.85rem 1.75rem;
+    border: 1px solid var(--glass-border);
+    background: var(--glass);
+    backdrop-filter: blur(10px);
+    color: white;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: all 0.25s;
+  }
+
+  .banner-btn:hover {
+    background: var(--glass-strong);
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.3);
+  }
+
+  .banner-btn.primary {
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+    border-color: transparent;
+    box-shadow: 0 4px 20px rgba(0, 212, 255, 0.3);
+  }
+
+  .banner-btn.primary:hover {
+    box-shadow: 0 8px 30px rgba(0, 212, 255, 0.5);
+  }
+
+  .banner-btn.copied {
+    background: linear-gradient(135deg, var(--match), var(--accent-1));
+    border-color: transparent;
+  }
+
+  /* Fun fact card */
+  .fun-fact-card {
+    margin-top: 1.5rem;
+    padding: 1.75rem;
+    animation: bannerEnter 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+    border-radius: 20px;
+    background: var(--glass);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    border: 1px solid var(--glass-border);
+  }
+
+  .fun-fact-label {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent-4);
+    padding: 0.3rem 0.8rem;
+    border: 1px solid rgba(255, 190, 11, 0.3);
+    border-radius: 100px;
+    margin-bottom: 0.9rem;
+  }
+
+  .fun-fact-text {
+    font-size: 1.1rem;
+    font-weight: 400;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  /* Legend and actions */
+  .legend {
+    margin-top: 2.5rem;
+    padding: 1.75rem;
+    text-align: center;
+    border-radius: 20px;
+    background: var(--glass);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--glass-border);
+  }
+
+  .legend-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent-1);
+    margin-bottom: 1.25rem;
+  }
+
+  .legend-items {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 2rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 1.5rem;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+
+  .legend-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    border: 1px solid var(--glass-border);
+  }
+
+  .legend-swatch.match {
+    background: linear-gradient(135deg, rgba(6, 255, 165, 0.35), rgba(6, 255, 165, 0.15));
+    border-color: rgba(6, 255, 165, 0.5);
+    box-shadow: 0 0 10px rgba(6, 255, 165, 0.3);
+  }
+
+  .legend-swatch.close {
+    background: linear-gradient(135deg, rgba(255, 190, 11, 0.35), rgba(255, 190, 11, 0.15));
+    border-color: rgba(255, 190, 11, 0.5);
+    box-shadow: 0 0 10px rgba(255, 190, 11, 0.2);
+  }
+
+  .legend-swatch.miss { background: var(--miss); }
+
+  .legend-arrows {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1.5rem;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: 1.5rem;
+  }
+
+  .legend-arrows strong { color: var(--accent-1); font-size: 1rem; }
+  .legend-arrows .down-arrow { color: var(--accent-2); }
+
+  .legend-actions {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .action-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 0.75rem 1.5rem;
+    background: var(--glass);
+    color: var(--text);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.25s;
+    backdrop-filter: blur(10px);
+  }
+
+  .action-btn:hover:not(:disabled) {
+    background: var(--glass-strong);
+    border-color: var(--accent-1);
+    color: var(--accent-1);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 212, 255, 0.2);
+  }
+
+  .action-btn.hint-btn {
+    border-color: rgba(255, 190, 11, 0.3);
+    color: var(--accent-4);
+  }
+
+  .action-btn.hint-btn:hover:not(:disabled) {
+    border-color: var(--accent-4);
+    box-shadow: 0 4px 20px rgba(255, 190, 11, 0.3);
+  }
+
+  .action-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 8, 25, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    animation: overlayFade 0.3s ease;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  @keyframes overlayFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .modal {
+    background: linear-gradient(135deg, rgba(26, 11, 46, 0.95), rgba(10, 14, 39, 0.95));
+    backdrop-filter: blur(30px) saturate(150%);
+    -webkit-backdrop-filter: blur(30px) saturate(150%);
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    max-width: 780px;
+    width: 100%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    animation: modalEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  }
+
+  @keyframes modalEnter {
+    from { opacity: 0; transform: translateY(30px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 1.75rem;
+    border-bottom: 1px solid var(--glass-border);
+  }
+
+  .modal-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2rem;
+    letter-spacing: 0.02em;
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .modal-subtitle {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-top: 0.2rem;
+  }
+
+  .modal-close {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .modal-close:hover {
+    background: var(--accent-2);
+    border-color: var(--accent-2);
+    transform: rotate(90deg);
+  }
+
+  .modal-body {
+    overflow-y: auto;
+    padding: 1.5rem 1.75rem;
+  }
+
+  .city-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .city-item {
+    padding: 0.6rem 0.9rem;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .city-item:hover {
+    background: var(--glass-strong);
+    border-color: var(--accent-1);
+    transform: translateY(-2px);
+  }
+
+  .city-item .country {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--text-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* How to play modal content */
+  .how-to-body {
+    padding: 1.5rem 1.75rem 1.75rem;
+    overflow-y: auto;
+  }
+
+  .how-to-section {
+    margin-bottom: 1.25rem;
+  }
+
+  .how-to-section h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent-1);
+    margin-bottom: 0.5rem;
+  }
+
+  .how-to-section p {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text-dim);
+  }
+
+  .how-to-section ul {
+    list-style: none;
+    margin-top: 0.5rem;
+  }
+
+  .how-to-section li {
+    padding: 0.5rem 0 0.5rem 1.5rem;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    color: var(--text-dim);
+    position: relative;
+  }
+
+  .how-to-section li::before {
+    content: '▸';
+    position: absolute;
+    left: 0;
+    color: var(--accent-1);
+  }
+
+  .how-to-section code {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--glass);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--accent-4);
+  }
+
+  /* Hint modal body */
+  .hint-body {
+    padding: 2.5rem 2rem;
+    text-align: center;
+  }
+
+  .hint-continent {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 3rem;
+    letter-spacing: 0.02em;
+    background: linear-gradient(135deg, var(--accent-4), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 0.5rem;
+  }
+
+  .hint-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-dim);
+  }
+
+  /* Footer */
+  footer {
+    text-align: center;
+    margin-top: 3rem;
+    padding: 1.75rem 0 0;
+    border-top: 1px solid var(--glass-border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  .credits {
+    margin-top: 0.8rem;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.05em;
+    text-transform: none;
+    color: var(--text-dim);
+  }
+
+  .credits strong {
+    background: linear-gradient(135deg, var(--accent-1), var(--accent-3), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700;
+  }
+
+  /* Confetti */
+  .confetti-wrap {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 50;
+    overflow: hidden;
+  }
+
+  .confetti-piece {
+    position: absolute;
+    width: 10px;
+    height: 14px;
+    top: -20px;
+    opacity: 0;
+    animation: fall 3.5s linear forwards;
+  }
+
+  @keyframes fall {
+    0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(110vh) rotate(720deg); }
+  }
+
+  /* Responsive */
+  @media (max-width: 1100px) {
+    .cell { height: 85px; font-size: 0.65rem; }
+    .cell .value { font-size: 0.62rem; }
+    .cell .icon { font-size: 1.1rem; }
+    .guess-name { height: 85px; font-size: 1.15rem; }
+    .guess-name .city-country { font-size: 0.55rem; }
+    .category-headers { font-size: 0.6rem; }
+  }
+
+  @media (max-width: 780px) {
+    body { padding: 1.5rem 0.75rem 3rem; }
+    .category-headers,
+    .guess-row {
+      grid-template-columns: 1.3fr repeat(8, 1fr);
+      gap: 3px;
+    }
+    .category-headers div { font-size: 0.52rem; padding: 0.3rem 0.1rem; }
+    .guess-name { font-size: 0.75rem; padding: 0.3rem 0.4rem; height: 62px; }
+    .guess-name .city-country { font-size: 0.48rem; margin-top: 1px; }
+    .cell { font-size: 0.5rem; padding: 0.15rem; height: 62px; border-radius: 8px; }
+    .cell .icon { font-size: 0.85rem; margin-bottom: 1px; }
+    .cell .value { font-size: 0.48rem; line-height: 1.1; }
+    .cell .arrow { font-size: 0.7rem; top: 3px; right: 4px; }
+    .input-section { flex-direction: column; }
+    #submit-btn { padding: 0.9rem; }
+    .autocomplete { right: 0; }
+    .orb { display: none; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--glass-strong); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+</style>
+</head>
+<body>
+
+<div class="bg-gradient"></div>
+<div class="stars" id="stars"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+<div class="confetti-wrap" id="confetti-wrap"></div>
+
+<div class="container">
+  <header>
+    <div class="tag-line">Daily Edition · Global</div>
+    <h1>CITYLE</h1>
+    <div class="subtitle">Guess The Global City</div>
+  </header>
+
+  <div class="status-bar glass">
+    <span><span class="label">Attempts</span><span class="guesses-count" id="guess-counter">0 / 8</span></span>
+    <span id="status-text">Awaiting your first guess</span>
+  </div>
+
+  <div class="input-section">
+    <input type="text" id="guess-input" placeholder="Enter a city name..." autocomplete="off">
+    <button id="submit-btn"><span>Guess</span></button>
+    <div class="autocomplete" id="autocomplete"></div>
+  </div>
+  <div class="error-msg" id="error-msg"></div>
+
+  <div class="category-headers">
+    <div>City</div>
+    <div data-tooltip="World subregion: Northern Europe, East Asia, South America, etc.">Region</div>
+    <div data-tooltip="Population of the metro area. Arrows indicate higher/lower than your guess.">Population</div>
+    <div data-tooltip="Metro area size in square kilometers. Arrows indicate higher/lower.">Size (km²)</div>
+    <div data-tooltip="Average annual temperature in °C. Arrows indicate higher/lower.">Avg Temp</div>
+    <div data-tooltip="Primary spoken language">Language</div>
+    <div data-tooltip="Local currency">Currency</div>
+    <div data-tooltip="Coastal (on or near a sea/ocean) vs Inland">Coast/Inland</div>
+    <div data-tooltip="Northern or Southern Hemisphere">Hemisphere</div>
+  </div>
+
+  <div class="guesses" id="guesses"></div>
+
+  <div id="end-banner" class="banner-wrap"></div>
+
+  <div class="legend">
+    <div class="legend-title">Legend</div>
+    <div class="legend-items">
+      <div class="legend-item"><div class="legend-swatch match"></div><span>Exact Match</span></div>
+      <div class="legend-item"><div class="legend-swatch close"></div><span>Close / Related</span></div>
+      <div class="legend-item"><div class="legend-swatch miss"></div><span>No Match</span></div>
+    </div>
+    <div class="legend-arrows">
+      <span><strong>↑</strong> Answer is HIGHER</span>
+      <span><strong class="down-arrow">↓</strong> Answer is LOWER</span>
+    </div>
+    <div class="legend-actions">
+      <button class="action-btn" id="how-to-btn">❓ How to Play</button>
+      <button class="action-btn" id="pantry-btn">🏙 All 200 Cities</button>
+      <button class="action-btn hint-btn" id="hint-btn">💡 Hint</button>
+    </div>
+  </div>
+
+  <!-- How to Play modal -->
+  <div class="modal-overlay" id="how-to-overlay">
+    <div class="modal" style="max-width: 600px;">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">How to Play</div>
+          <div class="modal-subtitle">Crack the city in 8 tries</div>
+        </div>
+        <button class="modal-close" id="how-to-close">✕</button>
+      </div>
+      <div class="how-to-body">
+        <div class="how-to-section">
+          <h3>The Goal</h3>
+          <p>Guess the mystery city in 8 attempts or fewer. Each guess reveals how close you are across 8 different categories.</p>
+        </div>
+        <div class="how-to-section">
+          <h3>Color Meanings</h3>
+          <ul>
+            <li><strong style="color: var(--match)">Green</strong> — Exact match with the target city</li>
+            <li><strong style="color: var(--close)">Yellow</strong> — Close or related (nearby region, similar climate, etc.)</li>
+            <li><strong style="color: var(--text-faint)">Grey</strong> — No match</li>
+          </ul>
+        </div>
+        <div class="how-to-section">
+          <h3>Arrows</h3>
+          <p>For numerical categories (Population, Size, Avg Temp), an arrow guides you:</p>
+          <ul>
+            <li><code>↑</code> The answer is <strong style="color: var(--accent-1)">HIGHER</strong> than your guess</li>
+            <li><code>↓</code> The answer is <strong style="color: var(--accent-2)">LOWER</strong> than your guess</li>
+          </ul>
+        </div>
+        <div class="how-to-section">
+          <h3>Strategy Tip</h3>
+          <p>Start broad — pick a city from a region you suspect, then narrow down using the feedback. Close matches mean you're on the right track.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hint modal -->
+  <div class="modal-overlay" id="hint-overlay">
+    <div class="modal" style="max-width: 460px;">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">Hint</div>
+          <div class="modal-subtitle">Continent revealed</div>
+        </div>
+        <button class="modal-close" id="hint-close">✕</button>
+      </div>
+      <div class="hint-body">
+        <div class="hint-continent" id="hint-continent"></div>
+        <div class="hint-sub" id="hint-sub"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- All cities modal -->
+  <div class="modal-overlay" id="pantry-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <div class="modal-title">The Atlas</div>
+          <div class="modal-subtitle" id="pantry-count"></div>
+        </div>
+        <button class="modal-close" id="pantry-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="city-grid" id="city-grid"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Est. 2026 · A Global Geography Game
+    <div class="credits">by <strong>MB Game Development</strong></div>
+  </footer>
+</div>
+
+<script>
+/* =========================================================
+   CITY DATABASE — 200 top global cities
+   Fields: name, country, region (UN subregion-inspired),
+   population (metro, millions), size (metro km²),
+   avgTemp (°C), language, currency, coast ('coastal'/'inland'),
+   hemisphere ('N'/'S')
+   ========================================================= */
+const CITIES = [
+  // East Asia
+  { name: "Tokyo", country: "Japan", region: "East Asia", population: 37.4, size: 13572, avgTemp: 15.4, language: "Japanese", currency: "JPY", coast: "coastal", hemisphere: "N" },
+  { name: "Osaka", country: "Japan", region: "East Asia", population: 19.0, size: 4800, avgTemp: 16.2, language: "Japanese", currency: "JPY", coast: "coastal", hemisphere: "N" },
+  { name: "Nagoya", country: "Japan", region: "East Asia", population: 9.5, size: 3700, avgTemp: 15.5, language: "Japanese", currency: "JPY", coast: "coastal", hemisphere: "N" },
+  { name: "Kyoto", country: "Japan", region: "East Asia", population: 3.8, size: 827, avgTemp: 15.8, language: "Japanese", currency: "JPY", coast: "inland", hemisphere: "N" },
+  { name: "Sapporo", country: "Japan", region: "East Asia", population: 2.6, size: 1121, avgTemp: 8.9, language: "Japanese", currency: "JPY", coast: "coastal", hemisphere: "N" },
+  { name: "Fukuoka", country: "Japan", region: "East Asia", population: 2.6, size: 343, avgTemp: 17.0, language: "Japanese", currency: "JPY", coast: "coastal", hemisphere: "N" },
+  { name: "Seoul", country: "South Korea", region: "East Asia", population: 25.7, size: 11704, avgTemp: 12.5, language: "Korean", currency: "KRW", coast: "inland", hemisphere: "N" },
+  { name: "Busan", country: "South Korea", region: "East Asia", population: 3.4, size: 770, avgTemp: 14.7, language: "Korean", currency: "KRW", coast: "coastal", hemisphere: "N" },
+  { name: "Incheon", country: "South Korea", region: "East Asia", population: 3.0, size: 1063, avgTemp: 12.1, language: "Korean", currency: "KRW", coast: "coastal", hemisphere: "N" },
+  { name: "Shanghai", country: "China", region: "East Asia", population: 28.5, size: 6341, avgTemp: 16.5, language: "Mandarin", currency: "CNY", coast: "coastal", hemisphere: "N" },
+  { name: "Beijing", country: "China", region: "East Asia", population: 21.9, size: 16411, avgTemp: 12.9, language: "Mandarin", currency: "CNY", coast: "inland", hemisphere: "N" },
+  { name: "Guangzhou", country: "China", region: "East Asia", population: 18.8, size: 7434, avgTemp: 22.0, language: "Mandarin", currency: "CNY", coast: "coastal", hemisphere: "N" },
+  { name: "Shenzhen", country: "China", region: "East Asia", population: 17.6, size: 1997, avgTemp: 23.0, language: "Mandarin", currency: "CNY", coast: "coastal", hemisphere: "N" },
+  { name: "Chengdu", country: "China", region: "East Asia", population: 16.0, size: 14378, avgTemp: 16.2, language: "Mandarin", currency: "CNY", coast: "inland", hemisphere: "N" },
+  { name: "Chongqing", country: "China", region: "East Asia", population: 16.4, size: 82300, avgTemp: 18.4, language: "Mandarin", currency: "CNY", coast: "inland", hemisphere: "N" },
+  { name: "Tianjin", country: "China", region: "East Asia", population: 13.6, size: 11917, avgTemp: 12.9, language: "Mandarin", currency: "CNY", coast: "coastal", hemisphere: "N" },
+  { name: "Wuhan", country: "China", region: "East Asia", population: 11.1, size: 8494, avgTemp: 17.0, language: "Mandarin", currency: "CNY", coast: "inland", hemisphere: "N" },
+  { name: "Xi'an", country: "China", region: "East Asia", population: 12.9, size: 10096, avgTemp: 14.0, language: "Mandarin", currency: "CNY", coast: "inland", hemisphere: "N" },
+  { name: "Nanjing", country: "China", region: "East Asia", population: 9.4, size: 6587, avgTemp: 15.9, language: "Mandarin", currency: "CNY", coast: "inland", hemisphere: "N" },
+  { name: "Hangzhou", country: "China", region: "East Asia", population: 12.4, size: 16596, avgTemp: 16.5, language: "Mandarin", currency: "CNY", coast: "inland", hemisphere: "N" },
+  { name: "Hong Kong", country: "Hong Kong", region: "East Asia", population: 7.5, size: 1106, avgTemp: 23.3, language: "Cantonese", currency: "HKD", coast: "coastal", hemisphere: "N" },
+  { name: "Taipei", country: "Taiwan", region: "East Asia", population: 7.0, size: 2457, avgTemp: 23.0, language: "Mandarin", currency: "TWD", coast: "coastal", hemisphere: "N" },
+  { name: "Kaohsiung", country: "Taiwan", region: "East Asia", population: 2.8, size: 2951, avgTemp: 24.8, language: "Mandarin", currency: "TWD", coast: "coastal", hemisphere: "N" },
+
+  // Southeast Asia
+  { name: "Manila", country: "Philippines", region: "Southeast Asia", population: 14.4, size: 619, avgTemp: 27.5, language: "Filipino", currency: "PHP", coast: "coastal", hemisphere: "N" },
+  { name: "Cebu", country: "Philippines", region: "Southeast Asia", population: 3.0, size: 315, avgTemp: 27.9, language: "Filipino", currency: "PHP", coast: "coastal", hemisphere: "N" },
+  { name: "Jakarta", country: "Indonesia", region: "Southeast Asia", population: 34.5, size: 6392, avgTemp: 27.0, language: "Indonesian", currency: "IDR", coast: "coastal", hemisphere: "S" },
+  { name: "Surabaya", country: "Indonesia", region: "Southeast Asia", population: 3.0, size: 911, avgTemp: 27.9, language: "Indonesian", currency: "IDR", coast: "coastal", hemisphere: "S" },
+  { name: "Bandung", country: "Indonesia", region: "Southeast Asia", population: 2.5, size: 167, avgTemp: 22.8, language: "Indonesian", currency: "IDR", coast: "inland", hemisphere: "S" },
+  { name: "Bangkok", country: "Thailand", region: "Southeast Asia", population: 10.7, size: 1569, avgTemp: 28.1, language: "Thai", currency: "THB", coast: "inland", hemisphere: "N" },
+  { name: "Chiang Mai", country: "Thailand", region: "Southeast Asia", population: 1.2, size: 40, avgTemp: 25.4, language: "Thai", currency: "THB", coast: "inland", hemisphere: "N" },
+  { name: "Ho Chi Minh City", country: "Vietnam", region: "Southeast Asia", population: 9.3, size: 2095, avgTemp: 27.5, language: "Vietnamese", currency: "VND", coast: "inland", hemisphere: "N" },
+  { name: "Hanoi", country: "Vietnam", region: "Southeast Asia", population: 8.4, size: 3359, avgTemp: 23.7, language: "Vietnamese", currency: "VND", coast: "inland", hemisphere: "N" },
+  { name: "Singapore", country: "Singapore", region: "Southeast Asia", population: 5.9, size: 728, avgTemp: 27.6, language: "English", currency: "SGD", coast: "coastal", hemisphere: "N" },
+  { name: "Kuala Lumpur", country: "Malaysia", region: "Southeast Asia", population: 8.4, size: 2243, avgTemp: 27.1, language: "Malay", currency: "MYR", coast: "inland", hemisphere: "N" },
+  { name: "Yangon", country: "Myanmar", region: "Southeast Asia", population: 5.4, size: 598, avgTemp: 27.5, language: "Burmese", currency: "MMK", coast: "coastal", hemisphere: "N" },
+  { name: "Phnom Penh", country: "Cambodia", region: "Southeast Asia", population: 2.3, size: 679, avgTemp: 28.5, language: "Khmer", currency: "KHR", coast: "inland", hemisphere: "N" },
+
+  // South Asia
+  { name: "Delhi", country: "India", region: "South Asia", population: 32.9, size: 1484, avgTemp: 25.0, language: "Hindi", currency: "INR", coast: "inland", hemisphere: "N" },
+  { name: "Mumbai", country: "India", region: "South Asia", population: 21.3, size: 603, avgTemp: 27.2, language: "Hindi", currency: "INR", coast: "coastal", hemisphere: "N" },
+  { name: "Kolkata", country: "India", region: "South Asia", population: 15.3, size: 1886, avgTemp: 26.8, language: "Bengali", currency: "INR", coast: "inland", hemisphere: "N" },
+  { name: "Bangalore", country: "India", region: "South Asia", population: 13.6, size: 741, avgTemp: 23.6, language: "Kannada", currency: "INR", coast: "inland", hemisphere: "N" },
+  { name: "Chennai", country: "India", region: "South Asia", population: 11.5, size: 426, avgTemp: 28.6, language: "Tamil", currency: "INR", coast: "coastal", hemisphere: "N" },
+  { name: "Hyderabad", country: "India", region: "South Asia", population: 10.5, size: 650, avgTemp: 26.5, language: "Telugu", currency: "INR", coast: "inland", hemisphere: "N" },
+  { name: "Ahmedabad", country: "India", region: "South Asia", population: 8.5, size: 464, avgTemp: 27.2, language: "Gujarati", currency: "INR", coast: "inland", hemisphere: "N" },
+  { name: "Pune", country: "India", region: "South Asia", population: 7.2, size: 331, avgTemp: 24.8, language: "Marathi", currency: "INR", coast: "inland", hemisphere: "N" },
+  { name: "Jaipur", country: "India", region: "South Asia", population: 4.1, size: 467, avgTemp: 25.2, language: "Hindi", currency: "INR", coast: "inland", hemisphere: "N" },
+  { name: "Karachi", country: "Pakistan", region: "South Asia", population: 17.1, size: 3780, avgTemp: 26.0, language: "Urdu", currency: "PKR", coast: "coastal", hemisphere: "N" },
+  { name: "Lahore", country: "Pakistan", region: "South Asia", population: 13.5, size: 1772, avgTemp: 24.3, language: "Urdu", currency: "PKR", coast: "inland", hemisphere: "N" },
+  { name: "Islamabad", country: "Pakistan", region: "South Asia", population: 2.4, size: 906, avgTemp: 21.2, language: "Urdu", currency: "PKR", coast: "inland", hemisphere: "N" },
+  { name: "Dhaka", country: "Bangladesh", region: "South Asia", population: 22.5, size: 306, avgTemp: 26.1, language: "Bengali", currency: "BDT", coast: "inland", hemisphere: "N" },
+  { name: "Colombo", country: "Sri Lanka", region: "South Asia", population: 2.6, size: 37, avgTemp: 27.4, language: "Sinhala", currency: "LKR", coast: "coastal", hemisphere: "N" },
+  { name: "Kathmandu", country: "Nepal", region: "South Asia", population: 1.5, size: 50, avgTemp: 18.3, language: "Nepali", currency: "NPR", coast: "inland", hemisphere: "N" },
+
+  // Western Asia / Middle East
+  { name: "Istanbul", country: "Turkey", region: "Western Asia", population: 15.8, size: 5343, avgTemp: 14.0, language: "Turkish", currency: "TRY", coast: "coastal", hemisphere: "N" },
+  { name: "Ankara", country: "Turkey", region: "Western Asia", population: 5.7, size: 25632, avgTemp: 11.9, language: "Turkish", currency: "TRY", coast: "inland", hemisphere: "N" },
+  { name: "Izmir", country: "Turkey", region: "Western Asia", population: 3.0, size: 11891, avgTemp: 17.6, language: "Turkish", currency: "TRY", coast: "coastal", hemisphere: "N" },
+  { name: "Tehran", country: "Iran", region: "Western Asia", population: 9.5, size: 686, avgTemp: 17.2, language: "Persian", currency: "IRR", coast: "inland", hemisphere: "N" },
+  { name: "Dubai", country: "UAE", region: "Western Asia", population: 3.6, size: 4114, avgTemp: 27.1, language: "Arabic", currency: "AED", coast: "coastal", hemisphere: "N" },
+  { name: "Abu Dhabi", country: "UAE", region: "Western Asia", population: 1.6, size: 972, avgTemp: 27.2, language: "Arabic", currency: "AED", coast: "coastal", hemisphere: "N" },
+  { name: "Riyadh", country: "Saudi Arabia", region: "Western Asia", population: 7.7, size: 1554, avgTemp: 25.9, language: "Arabic", currency: "SAR", coast: "inland", hemisphere: "N" },
+  { name: "Jeddah", country: "Saudi Arabia", region: "Western Asia", population: 4.7, size: 1765, avgTemp: 28.3, language: "Arabic", currency: "SAR", coast: "coastal", hemisphere: "N" },
+  { name: "Mecca", country: "Saudi Arabia", region: "Western Asia", population: 2.4, size: 760, avgTemp: 30.9, language: "Arabic", currency: "SAR", coast: "inland", hemisphere: "N" },
+  { name: "Baghdad", country: "Iraq", region: "Western Asia", population: 7.5, size: 673, avgTemp: 22.8, language: "Arabic", currency: "IQD", coast: "inland", hemisphere: "N" },
+  { name: "Amman", country: "Jordan", region: "Western Asia", population: 4.0, size: 1680, avgTemp: 17.1, language: "Arabic", currency: "JOD", coast: "inland", hemisphere: "N" },
+  { name: "Beirut", country: "Lebanon", region: "Western Asia", population: 2.4, size: 20, avgTemp: 20.4, language: "Arabic", currency: "LBP", coast: "coastal", hemisphere: "N" },
+  { name: "Damascus", country: "Syria", region: "Western Asia", population: 2.6, size: 105, avgTemp: 17.0, language: "Arabic", currency: "SYP", coast: "inland", hemisphere: "N" },
+  { name: "Tel Aviv", country: "Israel", region: "Western Asia", population: 4.5, size: 52, avgTemp: 20.3, language: "Hebrew", currency: "ILS", coast: "coastal", hemisphere: "N" },
+  { name: "Jerusalem", country: "Israel", region: "Western Asia", population: 1.3, size: 126, avgTemp: 17.5, language: "Hebrew", currency: "ILS", coast: "inland", hemisphere: "N" },
+  { name: "Doha", country: "Qatar", region: "Western Asia", population: 2.4, size: 132, avgTemp: 27.4, language: "Arabic", currency: "QAR", coast: "coastal", hemisphere: "N" },
+  { name: "Kuwait City", country: "Kuwait", region: "Western Asia", population: 3.1, size: 200, avgTemp: 25.9, language: "Arabic", currency: "KWD", coast: "coastal", hemisphere: "N" },
+  { name: "Muscat", country: "Oman", region: "Western Asia", population: 1.6, size: 3500, avgTemp: 28.7, language: "Arabic", currency: "OMR", coast: "coastal", hemisphere: "N" },
+
+  // Central Asia
+  { name: "Tashkent", country: "Uzbekistan", region: "Central Asia", population: 2.9, size: 335, avgTemp: 14.8, language: "Uzbek", currency: "UZS", coast: "inland", hemisphere: "N" },
+  { name: "Almaty", country: "Kazakhstan", region: "Central Asia", population: 2.0, size: 683, avgTemp: 10.0, language: "Kazakh", currency: "KZT", coast: "inland", hemisphere: "N" },
+  { name: "Baku", country: "Azerbaijan", region: "Western Asia", population: 2.3, size: 2140, avgTemp: 14.6, language: "Azerbaijani", currency: "AZN", coast: "coastal", hemisphere: "N" },
+
+  // Western Europe
+  { name: "London", country: "United Kingdom", region: "Western Europe", population: 9.5, size: 1572, avgTemp: 11.0, language: "English", currency: "GBP", coast: "inland", hemisphere: "N" },
+  { name: "Manchester", country: "United Kingdom", region: "Western Europe", population: 2.7, size: 630, avgTemp: 9.8, language: "English", currency: "GBP", coast: "inland", hemisphere: "N" },
+  { name: "Birmingham", country: "United Kingdom", region: "Western Europe", population: 2.6, size: 600, avgTemp: 9.6, language: "English", currency: "GBP", coast: "inland", hemisphere: "N" },
+  { name: "Edinburgh", country: "United Kingdom", region: "Western Europe", population: 0.5, size: 264, avgTemp: 8.9, language: "English", currency: "GBP", coast: "coastal", hemisphere: "N" },
+  { name: "Dublin", country: "Ireland", region: "Western Europe", population: 1.4, size: 318, avgTemp: 9.8, language: "English", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Paris", country: "France", region: "Western Europe", population: 11.2, size: 2845, avgTemp: 12.3, language: "French", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Marseille", country: "France", region: "Western Europe", population: 1.6, size: 241, avgTemp: 15.2, language: "French", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Lyon", country: "France", region: "Western Europe", population: 1.7, size: 48, avgTemp: 12.4, language: "French", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Nice", country: "France", region: "Western Europe", population: 0.9, size: 72, avgTemp: 15.7, language: "French", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Berlin", country: "Germany", region: "Western Europe", population: 3.8, size: 891, avgTemp: 10.0, language: "German", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Munich", country: "Germany", region: "Western Europe", population: 1.5, size: 310, avgTemp: 9.7, language: "German", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Hamburg", country: "Germany", region: "Western Europe", population: 1.9, size: 755, avgTemp: 9.7, language: "German", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Frankfurt", country: "Germany", region: "Western Europe", population: 2.3, size: 248, avgTemp: 10.6, language: "German", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Cologne", country: "Germany", region: "Western Europe", population: 1.1, size: 405, avgTemp: 10.5, language: "German", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Amsterdam", country: "Netherlands", region: "Western Europe", population: 2.5, size: 219, avgTemp: 10.2, language: "Dutch", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Rotterdam", country: "Netherlands", region: "Western Europe", population: 1.1, size: 325, avgTemp: 10.4, language: "Dutch", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Brussels", country: "Belgium", region: "Western Europe", population: 2.1, size: 162, avgTemp: 10.5, language: "French", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Zurich", country: "Switzerland", region: "Western Europe", population: 1.4, size: 88, avgTemp: 9.4, language: "German", currency: "CHF", coast: "inland", hemisphere: "N" },
+  { name: "Geneva", country: "Switzerland", region: "Western Europe", population: 0.6, size: 16, avgTemp: 10.5, language: "French", currency: "CHF", coast: "inland", hemisphere: "N" },
+  { name: "Vienna", country: "Austria", region: "Western Europe", population: 1.9, size: 415, avgTemp: 11.4, language: "German", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Luxembourg", country: "Luxembourg", region: "Western Europe", population: 0.13, size: 52, avgTemp: 9.7, language: "French", currency: "EUR", coast: "inland", hemisphere: "N" },
+
+  // Southern Europe
+  { name: "Madrid", country: "Spain", region: "Southern Europe", population: 6.7, size: 604, avgTemp: 15.0, language: "Spanish", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Barcelona", country: "Spain", region: "Southern Europe", population: 5.6, size: 101, avgTemp: 16.5, language: "Spanish", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Valencia", country: "Spain", region: "Southern Europe", population: 1.6, size: 135, avgTemp: 18.4, language: "Spanish", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Seville", country: "Spain", region: "Southern Europe", population: 1.5, size: 141, avgTemp: 19.2, language: "Spanish", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Rome", country: "Italy", region: "Southern Europe", population: 4.3, size: 1285, avgTemp: 15.7, language: "Italian", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Milan", country: "Italy", region: "Southern Europe", population: 3.1, size: 181, avgTemp: 13.3, language: "Italian", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Naples", country: "Italy", region: "Southern Europe", population: 3.1, size: 117, avgTemp: 15.9, language: "Italian", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Turin", country: "Italy", region: "Southern Europe", population: 2.2, size: 130, avgTemp: 12.9, language: "Italian", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Florence", country: "Italy", region: "Southern Europe", population: 1.5, size: 102, avgTemp: 14.8, language: "Italian", currency: "EUR", coast: "inland", hemisphere: "N" },
+  { name: "Venice", country: "Italy", region: "Southern Europe", population: 0.26, size: 415, avgTemp: 13.7, language: "Italian", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Lisbon", country: "Portugal", region: "Southern Europe", population: 2.9, size: 100, avgTemp: 17.4, language: "Portuguese", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Porto", country: "Portugal", region: "Southern Europe", population: 1.3, size: 41, avgTemp: 15.0, language: "Portuguese", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Athens", country: "Greece", region: "Southern Europe", population: 3.2, size: 412, avgTemp: 18.1, language: "Greek", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Thessaloniki", country: "Greece", region: "Southern Europe", population: 1.1, size: 19, avgTemp: 16.0, language: "Greek", currency: "EUR", coast: "coastal", hemisphere: "N" },
+
+  // Northern Europe
+  { name: "Stockholm", country: "Sweden", region: "Northern Europe", population: 1.7, size: 188, avgTemp: 7.5, language: "Swedish", currency: "SEK", coast: "coastal", hemisphere: "N" },
+  { name: "Gothenburg", country: "Sweden", region: "Northern Europe", population: 1.0, size: 450, avgTemp: 7.7, language: "Swedish", currency: "SEK", coast: "coastal", hemisphere: "N" },
+  { name: "Oslo", country: "Norway", region: "Northern Europe", population: 1.1, size: 454, avgTemp: 6.0, language: "Norwegian", currency: "NOK", coast: "coastal", hemisphere: "N" },
+  { name: "Copenhagen", country: "Denmark", region: "Northern Europe", population: 1.4, size: 180, avgTemp: 8.6, language: "Danish", currency: "DKK", coast: "coastal", hemisphere: "N" },
+  { name: "Helsinki", country: "Finland", region: "Northern Europe", population: 1.3, size: 214, avgTemp: 5.9, language: "Finnish", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Reykjavik", country: "Iceland", region: "Northern Europe", population: 0.22, size: 273, avgTemp: 5.0, language: "Icelandic", currency: "ISK", coast: "coastal", hemisphere: "N" },
+  { name: "Tallinn", country: "Estonia", region: "Northern Europe", population: 0.45, size: 159, avgTemp: 6.1, language: "Estonian", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Riga", country: "Latvia", region: "Northern Europe", population: 0.62, size: 307, avgTemp: 6.6, language: "Latvian", currency: "EUR", coast: "coastal", hemisphere: "N" },
+  { name: "Vilnius", country: "Lithuania", region: "Northern Europe", population: 0.58, size: 401, avgTemp: 6.8, language: "Lithuanian", currency: "EUR", coast: "inland", hemisphere: "N" },
+
+  // Eastern Europe
+  { name: "Moscow", country: "Russia", region: "Eastern Europe", population: 12.7, size: 2511, avgTemp: 5.8, language: "Russian", currency: "RUB", coast: "inland", hemisphere: "N" },
+  { name: "Saint Petersburg", country: "Russia", region: "Eastern Europe", population: 5.4, size: 1439, avgTemp: 5.8, language: "Russian", currency: "RUB", coast: "coastal", hemisphere: "N" },
+  { name: "Novosibirsk", country: "Russia", region: "Eastern Europe", population: 1.6, size: 502, avgTemp: 1.8, language: "Russian", currency: "RUB", coast: "inland", hemisphere: "N" },
+  { name: "Yekaterinburg", country: "Russia", region: "Eastern Europe", population: 1.5, size: 1142, avgTemp: 3.0, language: "Russian", currency: "RUB", coast: "inland", hemisphere: "N" },
+  { name: "Kyiv", country: "Ukraine", region: "Eastern Europe", population: 3.0, size: 839, avgTemp: 8.4, language: "Ukrainian", currency: "UAH", coast: "inland", hemisphere: "N" },
+  { name: "Minsk", country: "Belarus", region: "Eastern Europe", population: 2.0, size: 409, avgTemp: 6.7, language: "Belarusian", currency: "BYN", coast: "inland", hemisphere: "N" },
+  { name: "Warsaw", country: "Poland", region: "Eastern Europe", population: 3.1, size: 517, avgTemp: 8.5, language: "Polish", currency: "PLN", coast: "inland", hemisphere: "N" },
+  { name: "Krakow", country: "Poland", region: "Eastern Europe", population: 1.0, size: 327, avgTemp: 8.7, language: "Polish", currency: "PLN", coast: "inland", hemisphere: "N" },
+  { name: "Prague", country: "Czech Republic", region: "Eastern Europe", population: 1.3, size: 496, avgTemp: 9.4, language: "Czech", currency: "CZK", coast: "inland", hemisphere: "N" },
+  { name: "Budapest", country: "Hungary", region: "Eastern Europe", population: 1.8, size: 525, avgTemp: 11.3, language: "Hungarian", currency: "HUF", coast: "inland", hemisphere: "N" },
+  { name: "Bucharest", country: "Romania", region: "Eastern Europe", population: 2.3, size: 228, avgTemp: 11.5, language: "Romanian", currency: "RON", coast: "inland", hemisphere: "N" },
+  { name: "Sofia", country: "Bulgaria", region: "Eastern Europe", population: 1.6, size: 492, avgTemp: 10.6, language: "Bulgarian", currency: "BGN", coast: "inland", hemisphere: "N" },
+  { name: "Belgrade", country: "Serbia", region: "Eastern Europe", population: 1.4, size: 360, avgTemp: 12.5, language: "Serbian", currency: "RSD", coast: "inland", hemisphere: "N" },
+  { name: "Zagreb", country: "Croatia", region: "Eastern Europe", population: 1.1, size: 641, avgTemp: 11.2, language: "Croatian", currency: "EUR", coast: "inland", hemisphere: "N" },
+
+  // North Africa
+  { name: "Cairo", country: "Egypt", region: "North Africa", population: 22.2, size: 3085, avgTemp: 21.8, language: "Arabic", currency: "EGP", coast: "inland", hemisphere: "N" },
+  { name: "Alexandria", country: "Egypt", region: "North Africa", population: 5.4, size: 2679, avgTemp: 20.5, language: "Arabic", currency: "EGP", coast: "coastal", hemisphere: "N" },
+  { name: "Casablanca", country: "Morocco", region: "North Africa", population: 3.9, size: 220, avgTemp: 18.0, language: "Arabic", currency: "MAD", coast: "coastal", hemisphere: "N" },
+  { name: "Marrakech", country: "Morocco", region: "North Africa", population: 1.0, size: 230, avgTemp: 19.6, language: "Arabic", currency: "MAD", coast: "inland", hemisphere: "N" },
+  { name: "Rabat", country: "Morocco", region: "North Africa", population: 1.8, size: 117, avgTemp: 17.2, language: "Arabic", currency: "MAD", coast: "coastal", hemisphere: "N" },
+  { name: "Algiers", country: "Algeria", region: "North Africa", population: 3.7, size: 363, avgTemp: 18.0, language: "Arabic", currency: "DZD", coast: "coastal", hemisphere: "N" },
+  { name: "Tunis", country: "Tunisia", region: "North Africa", population: 2.7, size: 212, avgTemp: 18.5, language: "Arabic", currency: "TND", coast: "coastal", hemisphere: "N" },
+  { name: "Tripoli", country: "Libya", region: "North Africa", population: 1.1, size: 400, avgTemp: 20.1, language: "Arabic", currency: "LYD", coast: "coastal", hemisphere: "N" },
+  { name: "Khartoum", country: "Sudan", region: "North Africa", population: 5.8, size: 23, avgTemp: 29.9, language: "Arabic", currency: "SDG", coast: "inland", hemisphere: "N" },
+
+  // Sub-Saharan Africa
+  { name: "Lagos", country: "Nigeria", region: "Sub-Saharan Africa", population: 15.9, size: 1171, avgTemp: 26.8, language: "English", currency: "NGN", coast: "coastal", hemisphere: "N" },
+  { name: "Abuja", country: "Nigeria", region: "Sub-Saharan Africa", population: 3.6, size: 713, avgTemp: 25.0, language: "English", currency: "NGN", coast: "inland", hemisphere: "N" },
+  { name: "Kano", country: "Nigeria", region: "Sub-Saharan Africa", population: 4.1, size: 499, avgTemp: 26.5, language: "Hausa", currency: "NGN", coast: "inland", hemisphere: "N" },
+  { name: "Nairobi", country: "Kenya", region: "Sub-Saharan Africa", population: 5.1, size: 696, avgTemp: 18.5, language: "Swahili", currency: "KES", coast: "inland", hemisphere: "S" },
+  { name: "Mombasa", country: "Kenya", region: "Sub-Saharan Africa", population: 1.3, size: 295, avgTemp: 26.3, language: "Swahili", currency: "KES", coast: "coastal", hemisphere: "S" },
+  { name: "Addis Ababa", country: "Ethiopia", region: "Sub-Saharan Africa", population: 5.5, size: 527, avgTemp: 16.0, language: "Amharic", currency: "ETB", coast: "inland", hemisphere: "N" },
+  { name: "Dar es Salaam", country: "Tanzania", region: "Sub-Saharan Africa", population: 7.4, size: 1590, avgTemp: 25.8, language: "Swahili", currency: "TZS", coast: "coastal", hemisphere: "S" },
+  { name: "Kampala", country: "Uganda", region: "Sub-Saharan Africa", population: 3.7, size: 189, avgTemp: 22.0, language: "English", currency: "UGX", coast: "inland", hemisphere: "N" },
+  { name: "Accra", country: "Ghana", region: "Sub-Saharan Africa", population: 2.5, size: 225, avgTemp: 27.5, language: "English", currency: "GHS", coast: "coastal", hemisphere: "N" },
+  { name: "Dakar", country: "Senegal", region: "Sub-Saharan Africa", population: 3.9, size: 547, avgTemp: 24.5, language: "French", currency: "XOF", coast: "coastal", hemisphere: "N" },
+  { name: "Abidjan", country: "Ivory Coast", region: "Sub-Saharan Africa", population: 5.6, size: 422, avgTemp: 26.8, language: "French", currency: "XOF", coast: "coastal", hemisphere: "N" },
+  { name: "Kinshasa", country: "DR Congo", region: "Sub-Saharan Africa", population: 16.3, size: 9965, avgTemp: 25.3, language: "French", currency: "CDF", coast: "inland", hemisphere: "S" },
+  { name: "Luanda", country: "Angola", region: "Sub-Saharan Africa", population: 8.7, size: 2418, avgTemp: 24.0, language: "Portuguese", currency: "AOA", coast: "coastal", hemisphere: "S" },
+  { name: "Johannesburg", country: "South Africa", region: "Sub-Saharan Africa", population: 5.9, size: 1645, avgTemp: 15.9, language: "English", currency: "ZAR", coast: "inland", hemisphere: "S" },
+  { name: "Cape Town", country: "South Africa", region: "Sub-Saharan Africa", population: 4.8, size: 2461, avgTemp: 16.5, language: "English", currency: "ZAR", coast: "coastal", hemisphere: "S" },
+  { name: "Durban", country: "South Africa", region: "Sub-Saharan Africa", population: 3.5, size: 2291, avgTemp: 20.6, language: "English", currency: "ZAR", coast: "coastal", hemisphere: "S" },
+  { name: "Pretoria", country: "South Africa", region: "Sub-Saharan Africa", population: 2.5, size: 6298, avgTemp: 17.5, language: "English", currency: "ZAR", coast: "inland", hemisphere: "S" },
+  { name: "Harare", country: "Zimbabwe", region: "Sub-Saharan Africa", population: 1.5, size: 960, avgTemp: 18.0, language: "English", currency: "ZWL", coast: "inland", hemisphere: "S" },
+
+  // North America
+  { name: "New York", country: "USA", region: "North America", population: 19.5, size: 12093, avgTemp: 12.9, language: "English", currency: "USD", coast: "coastal", hemisphere: "N" },
+  { name: "Los Angeles", country: "USA", region: "North America", population: 13.2, size: 12562, avgTemp: 18.4, language: "English", currency: "USD", coast: "coastal", hemisphere: "N" },
+  { name: "Chicago", country: "USA", region: "North America", population: 9.5, size: 28120, avgTemp: 10.4, language: "English", currency: "USD", coast: "inland", hemisphere: "N" },
+  { name: "Houston", country: "USA", region: "North America", population: 7.1, size: 26061, avgTemp: 20.8, language: "English", currency: "USD", coast: "coastal", hemisphere: "N" },
+  { name: "Dallas", country: "USA", region: "North America", population: 7.7, size: 24059, avgTemp: 19.0, language: "English", currency: "USD", coast: "inland", hemisphere: "N" },
+  { name: "Austin", country: "USA", region: "North America", population: 2.4, size: 11100, avgTemp: 20.7, language: "English", currency: "USD", coast: "inland", hemisphere: "N" },
+  { name: "Miami", country: "USA", region: "North America", population: 6.1, size: 15890, avgTemp: 24.9, language: "English", currency: "USD", coast: "coastal", hemisphere: "N" },
+  { name: "Atlanta", country: "USA", region: "North America", population: 6.1, size: 22663, avgTemp: 16.5, language: "English", currency: "USD", coast: "inland", hemisphere: "N" },
+  { name: "Boston", country: "USA", region: "North America", population: 4.9, size: 12040, avgTemp: 10.9, language: "English", currency: "USD", coast: "coastal", hemisphere: "N" },
+  { name: "Philadelphia", country: "USA", region: "North America", population: 6.2, size: 13256, avgTemp: 13.0, language: "English", currency: "USD", coast: "inland", hemisphere: "N" },
+  { name: "Washington DC", country: "USA", region: "North America", population: 6.3, size: 14412, avgTemp: 14.2, language: "English", currency: "USD", coast: "inland", hemisphere: "N" },
+  { name: "San Francisco", country: "USA", region: "North America", population: 4.7, size: 7000, avgTemp: 14.8, language: "English", currency: "USD", coast: "coastal", hemisphere: "N" },
+  { name: "Seattle", country: "USA", region: "North America", population: 4.0, size: 15210, avgTemp: 11.3, language: "English", currency: "USD", coast: "coastal", hemisphere: "N" },
+  { name: "Denver", country: "USA", region: "North America", population: 3.0, size: 21726, avgTemp: 10.3, language: "English", currency: "USD", coast: "inland", hemisphere: "N" },
+  { name: "Phoenix", country: "USA", region: "North America", population: 5.0, size: 37764, avgTemp: 23.9, language: "English", currency: "USD", coast: "inland", hemisphere: "N" },
+  { name: "Las Vegas", country: "USA", region: "North America", population: 2.3, size: 20489, avgTemp: 19.8, language: "English", currency: "USD", coast: "inland", hemisphere: "N" },
+  { name: "Minneapolis", country: "USA", region: "North America", population: 3.7, size: 21549, avgTemp: 7.8, language: "English", currency: "USD", coast: "inland", hemisphere: "N" },
+  { name: "Detroit", country: "USA", region: "North America", population: 4.3, size: 10040, avgTemp: 10.1, language: "English", currency: "USD", coast: "inland", hemisphere: "N" },
+  { name: "Portland", country: "USA", region: "North America", population: 2.5, size: 17322, avgTemp: 11.8, language: "English", currency: "USD", coast: "inland", hemisphere: "N" },
+  { name: "New Orleans", country: "USA", region: "North America", population: 1.3, size: 8648, avgTemp: 20.5, language: "English", currency: "USD", coast: "coastal", hemisphere: "N" },
+  { name: "Honolulu", country: "USA", region: "North America", population: 1.0, size: 600, avgTemp: 25.4, language: "English", currency: "USD", coast: "coastal", hemisphere: "N" },
+  { name: "Anchorage", country: "USA", region: "North America", population: 0.4, size: 5079, avgTemp: 2.8, language: "English", currency: "USD", coast: "coastal", hemisphere: "N" },
+  { name: "Toronto", country: "Canada", region: "North America", population: 6.4, size: 7124, avgTemp: 9.4, language: "English", currency: "CAD", coast: "inland", hemisphere: "N" },
+  { name: "Montreal", country: "Canada", region: "North America", population: 4.3, size: 4604, avgTemp: 7.1, language: "French", currency: "CAD", coast: "inland", hemisphere: "N" },
+  { name: "Vancouver", country: "Canada", region: "North America", population: 2.6, size: 2883, avgTemp: 10.6, language: "English", currency: "CAD", coast: "coastal", hemisphere: "N" },
+  { name: "Calgary", country: "Canada", region: "North America", population: 1.6, size: 5107, avgTemp: 4.5, language: "English", currency: "CAD", coast: "inland", hemisphere: "N" },
+  { name: "Ottawa", country: "Canada", region: "North America", population: 1.5, size: 5716, avgTemp: 6.3, language: "English", currency: "CAD", coast: "inland", hemisphere: "N" },
+  { name: "Edmonton", country: "Canada", region: "North America", population: 1.5, size: 9427, avgTemp: 4.2, language: "English", currency: "CAD", coast: "inland", hemisphere: "N" },
+  { name: "Quebec City", country: "Canada", region: "North America", population: 0.83, size: 3408, avgTemp: 4.9, language: "French", currency: "CAD", coast: "inland", hemisphere: "N" },
+  { name: "Mexico City", country: "Mexico", region: "North America", population: 22.3, size: 7854, avgTemp: 16.6, language: "Spanish", currency: "MXN", coast: "inland", hemisphere: "N" },
+  { name: "Guadalajara", country: "Mexico", region: "North America", population: 5.4, size: 2734, avgTemp: 19.7, language: "Spanish", currency: "MXN", coast: "inland", hemisphere: "N" },
+  { name: "Monterrey", country: "Mexico", region: "North America", population: 5.3, size: 7657, avgTemp: 22.0, language: "Spanish", currency: "MXN", coast: "inland", hemisphere: "N" },
+  { name: "Tijuana", country: "Mexico", region: "North America", population: 2.2, size: 637, avgTemp: 17.8, language: "Spanish", currency: "MXN", coast: "coastal", hemisphere: "N" },
+  { name: "Cancun", country: "Mexico", region: "North America", population: 0.9, size: 1979, avgTemp: 26.3, language: "Spanish", currency: "MXN", coast: "coastal", hemisphere: "N" },
+
+  // Central America & Caribbean
+  { name: "Havana", country: "Cuba", region: "Central America", population: 2.1, size: 728, avgTemp: 25.1, language: "Spanish", currency: "CUP", coast: "coastal", hemisphere: "N" },
+  { name: "Santo Domingo", country: "Dominican Republic", region: "Central America", population: 3.7, size: 104, avgTemp: 26.0, language: "Spanish", currency: "DOP", coast: "coastal", hemisphere: "N" },
+  { name: "San Juan", country: "Puerto Rico", region: "Central America", population: 2.5, size: 199, avgTemp: 26.7, language: "Spanish", currency: "USD", coast: "coastal", hemisphere: "N" },
+  { name: "Kingston", country: "Jamaica", region: "Central America", population: 0.9, size: 480, avgTemp: 26.9, language: "English", currency: "JMD", coast: "coastal", hemisphere: "N" },
+  { name: "Panama City", country: "Panama", region: "Central America", population: 1.9, size: 275, avgTemp: 27.5, language: "Spanish", currency: "PAB", coast: "coastal", hemisphere: "N" },
+  { name: "Guatemala City", country: "Guatemala", region: "Central America", population: 3.0, size: 696, avgTemp: 19.3, language: "Spanish", currency: "GTQ", coast: "inland", hemisphere: "N" },
+  { name: "San Jose", country: "Costa Rica", region: "Central America", population: 2.1, size: 44, avgTemp: 20.6, language: "Spanish", currency: "CRC", coast: "inland", hemisphere: "N" },
+  { name: "San Salvador", country: "El Salvador", region: "Central America", population: 2.5, size: 886, avgTemp: 23.0, language: "Spanish", currency: "USD", coast: "inland", hemisphere: "N" },
+
+  // South America
+  { name: "São Paulo", country: "Brazil", region: "South America", population: 22.6, size: 7947, avgTemp: 19.3, language: "Portuguese", currency: "BRL", coast: "inland", hemisphere: "S" },
+  { name: "Rio de Janeiro", country: "Brazil", region: "South America", population: 13.6, size: 4540, avgTemp: 23.7, language: "Portuguese", currency: "BRL", coast: "coastal", hemisphere: "S" },
+  { name: "Brasília", country: "Brazil", region: "South America", population: 4.9, size: 5802, avgTemp: 21.5, language: "Portuguese", currency: "BRL", coast: "inland", hemisphere: "S" },
+  { name: "Salvador", country: "Brazil", region: "South America", population: 3.9, size: 693, avgTemp: 25.4, language: "Portuguese", currency: "BRL", coast: "coastal", hemisphere: "S" },
+  { name: "Fortaleza", country: "Brazil", region: "South America", population: 4.2, size: 314, avgTemp: 27.0, language: "Portuguese", currency: "BRL", coast: "coastal", hemisphere: "S" },
+  { name: "Belo Horizonte", country: "Brazil", region: "South America", population: 6.1, size: 9459, avgTemp: 21.1, language: "Portuguese", currency: "BRL", coast: "inland", hemisphere: "S" },
+  { name: "Curitiba", country: "Brazil", region: "South America", population: 3.7, size: 16581, avgTemp: 17.4, language: "Portuguese", currency: "BRL", coast: "inland", hemisphere: "S" },
+  { name: "Manaus", country: "Brazil", region: "South America", population: 2.7, size: 11401, avgTemp: 27.5, language: "Portuguese", currency: "BRL", coast: "inland", hemisphere: "S" },
+  { name: "Recife", country: "Brazil", region: "South America", population: 4.1, size: 2772, avgTemp: 25.9, language: "Portuguese", currency: "BRL", coast: "coastal", hemisphere: "S" },
+  { name: "Buenos Aires", country: "Argentina", region: "South America", population: 15.6, size: 4758, avgTemp: 17.8, language: "Spanish", currency: "ARS", coast: "coastal", hemisphere: "S" },
+  { name: "Córdoba", country: "Argentina", region: "South America", population: 1.5, size: 576, avgTemp: 17.4, language: "Spanish", currency: "ARS", coast: "inland", hemisphere: "S" },
+  { name: "Santiago", country: "Chile", region: "South America", population: 7.2, size: 641, avgTemp: 14.6, language: "Spanish", currency: "CLP", coast: "inland", hemisphere: "S" },
+  { name: "Lima", country: "Peru", region: "South America", population: 11.0, size: 2672, avgTemp: 19.0, language: "Spanish", currency: "PEN", coast: "coastal", hemisphere: "S" },
+  { name: "Bogotá", country: "Colombia", region: "South America", population: 11.3, size: 1775, avgTemp: 14.4, language: "Spanish", currency: "COP", coast: "inland", hemisphere: "N" },
+  { name: "Medellín", country: "Colombia", region: "South America", population: 4.1, size: 382, avgTemp: 22.3, language: "Spanish", currency: "COP", coast: "inland", hemisphere: "N" },
+  { name: "Cali", country: "Colombia", region: "South America", population: 2.8, size: 560, avgTemp: 24.8, language: "Spanish", currency: "COP", coast: "inland", hemisphere: "N" },
+  { name: "Caracas", country: "Venezuela", region: "South America", population: 2.9, size: 777, avgTemp: 22.5, language: "Spanish", currency: "VES", coast: "inland", hemisphere: "N" },
+  { name: "Quito", country: "Ecuador", region: "South America", population: 2.0, size: 372, avgTemp: 13.9, language: "Spanish", currency: "USD", coast: "inland", hemisphere: "S" },
+  { name: "Guayaquil", country: "Ecuador", region: "South America", population: 3.1, size: 345, avgTemp: 25.9, language: "Spanish", currency: "USD", coast: "coastal", hemisphere: "S" },
+  { name: "La Paz", country: "Bolivia", region: "South America", population: 1.9, size: 472, avgTemp: 9.4, language: "Spanish", currency: "BOB", coast: "inland", hemisphere: "S" },
+  { name: "Montevideo", country: "Uruguay", region: "South America", population: 1.8, size: 194, avgTemp: 16.9, language: "Spanish", currency: "UYU", coast: "coastal", hemisphere: "S" },
+  { name: "Asunción", country: "Paraguay", region: "South America", population: 2.5, size: 117, avgTemp: 22.6, language: "Spanish", currency: "PYG", coast: "inland", hemisphere: "S" },
+
+  // Oceania
+  { name: "Sydney", country: "Australia", region: "Oceania", population: 5.4, size: 12368, avgTemp: 18.4, language: "English", currency: "AUD", coast: "coastal", hemisphere: "S" },
+  { name: "Melbourne", country: "Australia", region: "Oceania", population: 5.2, size: 9993, avgTemp: 15.1, language: "English", currency: "AUD", coast: "coastal", hemisphere: "S" },
+  { name: "Brisbane", country: "Australia", region: "Oceania", population: 2.6, size: 15826, avgTemp: 20.3, language: "English", currency: "AUD", coast: "coastal", hemisphere: "S" },
+  { name: "Perth", country: "Australia", region: "Oceania", population: 2.2, size: 6418, avgTemp: 18.9, language: "English", currency: "AUD", coast: "coastal", hemisphere: "S" },
+  { name: "Adelaide", country: "Australia", region: "Oceania", population: 1.4, size: 3258, avgTemp: 16.9, language: "English", currency: "AUD", coast: "coastal", hemisphere: "S" },
+  { name: "Canberra", country: "Australia", region: "Oceania", population: 0.47, size: 814, avgTemp: 13.1, language: "English", currency: "AUD", coast: "inland", hemisphere: "S" },
+  { name: "Auckland", country: "New Zealand", region: "Oceania", population: 1.7, size: 4894, avgTemp: 15.2, language: "English", currency: "NZD", coast: "coastal", hemisphere: "S" },
+  { name: "Wellington", country: "New Zealand", region: "Oceania", population: 0.42, size: 444, avgTemp: 12.9, language: "English", currency: "NZD", coast: "coastal", hemisphere: "S" }
+];
+
+/* =========================================================
+   REGION CLOSENESS: which regions count as "close"?
+   ========================================================= */
+const REGION_GROUPS = {
+  "East Asia": ["Southeast Asia", "Central Asia"],
+  "Southeast Asia": ["East Asia", "South Asia", "Oceania"],
+  "South Asia": ["Southeast Asia", "Central Asia", "Western Asia"],
+  "Central Asia": ["East Asia", "South Asia", "Western Asia", "Eastern Europe"],
+  "Western Asia": ["South Asia", "Central Asia", "North Africa", "Southern Europe"],
+  "Western Europe": ["Southern Europe", "Northern Europe", "Eastern Europe"],
+  "Southern Europe": ["Western Europe", "Eastern Europe", "North Africa", "Western Asia"],
+  "Northern Europe": ["Western Europe", "Eastern Europe"],
+  "Eastern Europe": ["Northern Europe", "Western Europe", "Southern Europe", "Central Asia"],
+  "North Africa": ["Sub-Saharan Africa", "Western Asia", "Southern Europe"],
+  "Sub-Saharan Africa": ["North Africa"],
+  "North America": ["Central America"],
+  "Central America": ["North America", "South America"],
+  "South America": ["Central America"],
+  "Oceania": ["Southeast Asia"]
+};
+
+/* Which continent each region belongs to — for the hint */
+const CONTINENT = {
+  "East Asia": "Asia", "Southeast Asia": "Asia", "South Asia": "Asia",
+  "Central Asia": "Asia", "Western Asia": "Asia",
+  "Western Europe": "Europe", "Southern Europe": "Europe",
+  "Northern Europe": "Europe", "Eastern Europe": "Europe",
+  "North Africa": "Africa", "Sub-Saharan Africa": "Africa",
+  "North America": "North America", "Central America": "North America",
+  "South America": "South America",
+  "Oceania": "Oceania"
+};
+
+/* Language families — "close" if same family */
+const LANGUAGE_FAMILY = {
+  "English": "Germanic", "German": "Germanic", "Dutch": "Germanic",
+  "Swedish": "Germanic", "Norwegian": "Germanic", "Danish": "Germanic",
+  "Icelandic": "Germanic",
+  "French": "Romance", "Spanish": "Romance", "Italian": "Romance",
+  "Portuguese": "Romance", "Romanian": "Romance",
+  "Russian": "Slavic", "Ukrainian": "Slavic", "Belarusian": "Slavic",
+  "Polish": "Slavic", "Czech": "Slavic", "Serbian": "Slavic",
+  "Bulgarian": "Slavic", "Croatian": "Slavic",
+  "Mandarin": "Sino-Tibetan", "Cantonese": "Sino-Tibetan", "Burmese": "Sino-Tibetan",
+  "Japanese": "Japonic", "Korean": "Koreanic",
+  "Arabic": "Semitic", "Hebrew": "Semitic", "Amharic": "Semitic",
+  "Hindi": "Indo-Aryan", "Bengali": "Indo-Aryan", "Urdu": "Indo-Aryan",
+  "Gujarati": "Indo-Aryan", "Marathi": "Indo-Aryan", "Nepali": "Indo-Aryan",
+  "Sinhala": "Indo-Aryan",
+  "Tamil": "Dravidian", "Telugu": "Dravidian", "Kannada": "Dravidian",
+  "Turkish": "Turkic", "Azerbaijani": "Turkic", "Uzbek": "Turkic", "Kazakh": "Turkic",
+  "Finnish": "Uralic", "Estonian": "Uralic", "Hungarian": "Uralic",
+  "Persian": "Iranian",
+  "Greek": "Hellenic",
+  "Latvian": "Baltic", "Lithuanian": "Baltic",
+  "Vietnamese": "Austroasiatic", "Khmer": "Austroasiatic",
+  "Thai": "Kra-Dai",
+  "Indonesian": "Austronesian", "Malay": "Austronesian", "Filipino": "Austronesian",
+  "Swahili": "Bantu", "Hausa": "Afro-Asiatic"
+};
+
+const ICONS = {
+  region: { "East Asia": "🀄", "Southeast Asia": "🌴", "South Asia": "🕌", "Central Asia": "⛰", "Western Asia": "🕋", "Western Europe": "🏰", "Southern Europe": "🏛", "Northern Europe": "❄", "Eastern Europe": "☦", "North Africa": "🐪", "Sub-Saharan Africa": "🦁", "North America": "🗽", "Central America": "🌺", "South America": "🦜", "Oceania": "🦘" },
+  coast: { "coastal": "🌊", "inland": "⛰" },
+  hemisphere: { "N": "↑", "S": "↓" }
+};
+
+/* Temperature classification for "close" matching */
+function tempTier(t) {
+  if (t < 10) return "cold";
+  if (t < 18) return "cool";
+  if (t < 24) return "warm";
+  return "hot";
+}
+
+/* Closeness thresholds */
+const POP_CLOSE_RATIO = 0.5;      // within 50% = close
+const SIZE_CLOSE_RATIO = 0.5;
+const TEMP_CLOSE_DELTA = 5;       // within 5°C = close
+
+let target = null;
+let guesses = [];
+let gameOver = false;
+const MAX_GUESSES = 8;
+
+/* =========== STARFIELD =========== */
+function generateStars() {
+  const stars = document.getElementById('stars');
+  const count = 120;
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    const size = Math.random() * 2 + 0.5;
+    const x = Math.random() * 100;
+    const y = Math.random() * 100;
+    const dur = 2 + Math.random() * 4;
+    const delay = Math.random() * 5;
+    html += `<div class="star" style="width:${size}px;height:${size}px;left:${x}%;top:${y}%;--dur:${dur}s;--delay:${delay}s"></div>`;
+  }
+  stars.innerHTML = html;
+}
+
+/* =========== CONFETTI =========== */
+function launchConfetti() {
+  const wrap = document.getElementById('confetti-wrap');
+  const colors = ['#00d4ff', '#ff006e', '#8338ec', '#ffbe0b', '#06ffa5'];
+  let html = '';
+  for (let i = 0; i < 80; i++) {
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const left = Math.random() * 100;
+    const delay = Math.random() * 0.8;
+    const duration = 2.5 + Math.random() * 2;
+    const rot = Math.random() * 360;
+    html += `<div class="confetti-piece" style="background:${color};left:${left}%;animation-delay:${delay}s;animation-duration:${duration}s;transform:rotate(${rot}deg)"></div>`;
+  }
+  wrap.innerHTML = html;
+  setTimeout(() => { wrap.innerHTML = ''; }, 4000);
+}
+
+/* =========== GAME LOGIC =========== */
+function startGame() {
+  target = CITIES[Math.floor(Math.random() * CITIES.length)];
+  guesses = [];
+  gameOver = false;
+  document.getElementById('guesses').innerHTML = '';
+  document.getElementById('end-banner').innerHTML = '';
+  document.getElementById('guess-input').value = '';
+  document.getElementById('guess-input').disabled = false;
+  document.getElementById('submit-btn').disabled = false;
+  document.getElementById('hint-btn').disabled = false;
+  document.getElementById('error-msg').textContent = '';
+  updateStatus();
+  document.getElementById('guess-input').focus();
+  // console.log('Target:', target.name); // debugging
+}
+
+function updateStatus() {
+  document.getElementById('guess-counter').textContent = `${guesses.length} / ${MAX_GUESSES}`;
+  const statusText = document.getElementById('status-text');
+  if (gameOver) return;
+  const left = MAX_GUESSES - guesses.length;
+  if (guesses.length === 0) statusText.textContent = 'Awaiting your first guess';
+  else if (left === 1) statusText.textContent = 'Final guess — make it count';
+  else statusText.textContent = `${left} attempts remaining`;
+}
+
+/* Compare categories, return {status, arrow} */
+function compareCategory(field, guessVal, targetVal) {
+  let status = 'miss';
+  let arrow = '';
+
+  if (field === 'region') {
+    if (guessVal === targetVal) status = 'match';
+    else if ((REGION_GROUPS[guessVal] || []).includes(targetVal)) status = 'close';
+  } else if (field === 'population' || field === 'size') {
+    const ratio = Math.min(guessVal, targetVal) / Math.max(guessVal, targetVal);
+    const closeThreshold = field === 'population' ? (1 - POP_CLOSE_RATIO) : (1 - SIZE_CLOSE_RATIO);
+    if (guessVal === targetVal) status = 'match';
+    else if (ratio >= closeThreshold) status = 'close';
+    if (guessVal < targetVal) arrow = 'up';
+    else if (guessVal > targetVal) arrow = 'down';
+  } else if (field === 'avgTemp') {
+    const delta = Math.abs(guessVal - targetVal);
+    if (delta < 0.5) status = 'match';
+    else if (delta <= TEMP_CLOSE_DELTA) status = 'close';
+    if (guessVal < targetVal) arrow = 'up';
+    else if (guessVal > targetVal) arrow = 'down';
+  } else if (field === 'language') {
+    if (guessVal === targetVal) status = 'match';
+    else if (LANGUAGE_FAMILY[guessVal] && LANGUAGE_FAMILY[guessVal] === LANGUAGE_FAMILY[targetVal]) status = 'close';
+  } else if (field === 'currency') {
+    if (guessVal === targetVal) status = 'match';
+  } else if (field === 'coast') {
+    if (guessVal === targetVal) status = 'match';
+  } else if (field === 'hemisphere') {
+    if (guessVal === targetVal) status = 'match';
+  }
+  return { status, arrow };
+}
+
+/* Format numbers nicely */
+function formatValue(field, val) {
+  if (field === 'population') {
+    if (val < 1) return (val * 1000).toFixed(0) + 'K';
+    return val.toFixed(1) + 'M';
+  }
+  if (field === 'size') {
+    if (val >= 1000) return (val / 1000).toFixed(1) + 'K km²';
+    return val + ' km²';
+  }
+  if (field === 'avgTemp') return val.toFixed(1) + '°C';
+  if (field === 'hemisphere') return val === 'N' ? 'North' : 'South';
+  if (field === 'coast') return val === 'coastal' ? 'Coastal' : 'Inland';
+  return val;
+}
+
+function renderCell(field, guessVal, targetVal) {
+  const { status, arrow } = compareCategory(field, guessVal, targetVal);
+  const icon = (ICONS[field] && ICONS[field][guessVal]) || '';
+  const displayVal = formatValue(field, guessVal);
+  const arrowHtml = arrow ? `<div class="arrow ${arrow}">${arrow === 'up' ? '↑' : '↓'}</div>` : '';
+  return `
+    <div class="cell ${status}">
+      ${arrowHtml}
+      ${icon ? `<div class="icon">${icon}</div>` : ''}
+      <div class="value">${displayVal}</div>
+    </div>
+  `;
+}
+
+function renderGuess(guess) {
+  const row = document.createElement('div');
+  row.className = 'guess-row';
+  row.innerHTML = `
+    <div class="guess-name">
+      <div>${guess.name}</div>
+      <div class="city-country">${guess.country}</div>
+    </div>
+    ${renderCell('region', guess.region, target.region)}
+    ${renderCell('population', guess.population, target.population)}
+    ${renderCell('size', guess.size, target.size)}
+    ${renderCell('avgTemp', guess.avgTemp, target.avgTemp)}
+    ${renderCell('language', guess.language, target.language)}
+    ${renderCell('currency', guess.currency, target.currency)}
+    ${renderCell('coast', guess.coast, target.coast)}
+    ${renderCell('hemisphere', guess.hemisphere, target.hemisphere)}
+  `;
+  document.getElementById('guesses').appendChild(row);
+}
+
+/* =========== END GAME =========== */
+
+const CITY_FACTS = {
+  "Tokyo": "Tokyo's metro area is the largest in the world by population, and its train stations handle more passengers than any other country's entire rail system.",
+  "Paris": "Paris has over 470 parks and gardens, and the city is planting 170,000 new trees to become a true 'garden city' by 2030.",
+  "New York": "New York City has more people than 40 of the 50 U.S. states, and speaks over 800 languages — the most linguistically diverse city on Earth.",
+  "London": "London has the oldest underground rail system in the world, opened in 1863, and there are over 270 stations serving 5 million passengers daily.",
+  "Dubai": "Dubai built 25% of the world's cranes in the 2000s and is home to the tallest building on Earth, the 828-meter Burj Khalifa.",
+  "Shanghai": "Shanghai is the world's busiest container port, handling over 47 million shipping containers per year — more than any other city.",
+  "Mumbai": "Mumbai generates 6% of India's GDP from less than 1% of its land area, making it one of the densest economic powerhouses on the planet.",
+  "Mexico City": "Mexico City sits on the ruins of Tenochtitlán and is slowly sinking — up to 50 cm per year in some areas — due to groundwater extraction.",
+  "São Paulo": "São Paulo has more helicopters than any other city in the world, and over 500 helipads — a response to its notorious traffic.",
+  "Moscow": "Moscow's metro stations are often called 'underground palaces' for their marble, chandeliers, and mosaics — built as Soviet propaganda to showcase communism.",
+  "Istanbul": "Istanbul is the only city in the world that spans two continents — Europe and Asia — separated by the Bosporus Strait.",
+  "Cairo": "Cairo is home to the Great Pyramids of Giza, which are older than the mammoth — when they were built, woolly mammoths were still alive in Siberia.",
+  "Sydney": "Sydney's iconic Opera House has over one million roof tiles, and the building's design was famously chosen from 233 entries in a global competition.",
+  "Rio de Janeiro": "Rio's Christ the Redeemer statue weighs 635 metric tons and was built in pieces in France, then shipped to Brazil and assembled in the 1920s.",
+  "Singapore": "Singapore went from a colonial trading post to one of the world's wealthiest nations in just 50 years — the fastest urban development in history.",
+  "Seoul": "Seoul has the fastest average internet speeds in the world, and the city has over 850,000 free public Wi-Fi hotspots.",
+  "Beijing": "Beijing's Forbidden City has 9,999 rooms — Chinese emperors believed 10,000 was a number reserved for the gods, so they stopped one short.",
+  "Los Angeles": "Los Angeles is the only city in North America to have hosted two Summer Olympics, and will host its third in 2028.",
+  "Buenos Aires": "Buenos Aires has more bookstores per capita than any other city in the world, and residents are famous for their love of reading in cafes.",
+  "Bangkok": "Bangkok's full ceremonial name is the longest city name in the world at 169 letters — locals just call it 'Krung Thep' or 'City of Angels'.",
+  "Amsterdam": "Amsterdam has more bicycles than residents — about 880,000 bikes for 870,000 people — and the city has 400 km of dedicated bike lanes.",
+  "Venice": "Venice is built on over 120 islands connected by 400 bridges, and its foundations rest on millions of wooden piles driven into the lagoon over 1,000 years ago.",
+  "Rome": "Rome has over 2,000 public fountains — more than any other city — and they still provide free, clean drinking water from ancient aqueduct systems.",
+  "Barcelona": "Barcelona's Sagrada Familia has been under construction since 1882 and is expected to finally finish in 2026, making it a 144-year build.",
+  "Hong Kong": "Hong Kong has more skyscrapers than any other city in the world — over 9,000 buildings are 100 meters or taller.",
+  "Athens": "Athens has been continuously inhabited for over 7,000 years, making it one of the oldest cities in Europe — older than the pyramids of Egypt.",
+  "Madrid": "Madrid's Plaza Mayor has hosted bullfights, royal coronations, and the Spanish Inquisition's public trials over its 400-year history.",
+  "Berlin": "Berlin has more bridges than Venice — over 1,700 bridges cross the city's rivers and canals, compared to Venice's roughly 400.",
+  "Vienna": "Vienna has been ranked the world's most livable city multiple years in a row, and over 50% of its land is parks and green space.",
+  "Lisbon": "Lisbon is older than Rome — archaeological evidence shows the city was founded around 1200 BC, roughly 400 years before Rome.",
+  "Reykjavik": "Reykjavik is the northernmost capital city in the world and is powered almost entirely by geothermal energy from nearby volcanoes.",
+  "Cape Town": "Cape Town's Table Mountain is one of the oldest mountains in the world — around 520 million years old, six times older than the Himalayas.",
+  "Jakarta": "Jakarta is sinking faster than any other major city — up to 25 cm per year — which is why Indonesia is building a new capital on Borneo.",
+  "Delhi": "Delhi has been destroyed and rebuilt at least 11 times in its 2,500-year history, and today it's the second largest city on Earth.",
+  "Manila": "Manila is the most densely populated city in the world, with over 43,000 people per square kilometer in some neighborhoods.",
+  "Lagos": "Lagos adds about 2,000 new residents every single day, making it the fastest-growing megacity in the world.",
+  "Havana": "Havana has more classic American cars from the 1950s than any city in the world — kept running due to decades of U.S. trade embargoes.",
+  "Toronto": "Toronto is the most multicultural city in the world — over half its population was born outside Canada, speaking 180+ languages.",
+  "Chicago": "Chicago invented the modern skyscraper in 1885 with the 10-story Home Insurance Building — the first to use a steel-frame structure.",
+  "San Francisco": "San Francisco's famous fog has its own name — Karl — and has its own Twitter account with over 300,000 followers.",
+  "Seattle": "Seattle's Pike Place Market is the oldest continuously operated farmers market in the United States, opened in 1907.",
+  "Montreal": "Montreal is the second-largest French-speaking city in the world after Paris, with over 4 million French speakers.",
+  "Vancouver": "Vancouver is consistently ranked one of the world's most livable cities and sits between ocean and mountains — you can ski and surf the same day.",
+  "Honolulu": "Honolulu is the most isolated major city on Earth — the nearest other major city (San Francisco) is over 3,800 km away.",
+  "Nairobi": "Nairobi is the only capital city in the world with a national park inside its limits — lions and giraffes roam within sight of skyscrapers.",
+  "Johannesburg": "Johannesburg has the world's largest man-made forest — over 10 million trees planted across the city, visible from space.",
+  "Marrakech": "Marrakech's medina has over 9,000 alleyways, many so narrow that two people can barely pass each other walking in opposite directions.",
+  "Kyoto": "Kyoto was the capital of Japan for over 1,000 years and has 17 UNESCO World Heritage sites — more than any other city in the country.",
+  "Osaka": "Osaka is known as Japan's 'kitchen' — the city has over 100,000 restaurants, and the local saying is 'kuidaore' meaning 'to eat yourself bankrupt'.",
+  "Busan": "Busan hosts the world's largest department store — Shinsegae Centum City is in the Guinness Book of World Records at over 290,000 square meters.",
+  "Hanoi": "Hanoi's Old Quarter has 36 streets, each historically named after the guild or craft practiced there — silver street, silk street, paper street, etc.",
+  "Ho Chi Minh City": "Ho Chi Minh City has over 8 million motorbikes for 9 million residents — at rush hour, more than one motorbike leaves per second.",
+  "Kuala Lumpur": "Kuala Lumpur's Petronas Towers were the world's tallest buildings from 1998 to 2004 and still hold the record for tallest twin towers.",
+  "Taipei": "Taipei 101 held the 'tallest building' title from 2004 to 2010 and has the world's largest tuned mass damper — a 660-ton pendulum that stabilizes it during earthquakes and typhoons.",
+  "Karachi": "Karachi's port is the largest deep-water port in Pakistan and handles 60% of the country's cargo — the city generates over 25% of national GDP.",
+  "Dhaka": "Dhaka is one of the most densely populated cities in the world with over 46,000 people per square kilometer — denser than Manhattan.",
+  "Colombo": "Colombo's harbor has been a major trading hub for over 2,000 years, with Arab, Chinese, Portuguese, Dutch, and British traders all leaving their mark.",
+  "Kathmandu": "Kathmandu sits in a valley that was once a massive lake — Buddhist legend says a bodhisattva cut the mountains to drain the water and create habitable land.",
+  "Tehran": "Tehran has the second-largest metro system in the Middle East, carrying over 3 million passengers daily beneath a city surrounded by snow-capped mountains.",
+  "Riyadh": "Riyadh is growing into one of the world's fastest-expanding cities — its population has quadrupled since 1990 thanks to massive oil-fueled development.",
+  "Jerusalem": "Jerusalem is sacred to Judaism, Christianity, and Islam — it's the only city in the world with such deep religious significance to three major faiths.",
+  "Tel Aviv": "Tel Aviv has the largest collection of Bauhaus-style architecture in the world — over 4,000 buildings earned it UNESCO World Heritage status.",
+  "Baghdad": "Baghdad was the world's largest city during the Islamic Golden Age around 900 AD, with over a million people and the most sophisticated libraries on Earth.",
+  "Doha": "Doha went from a small pearl-diving village to a futuristic megacity in less than 50 years, hosting the 2022 FIFA World Cup in air-conditioned outdoor stadiums.",
+  "Abu Dhabi": "Abu Dhabi is the capital of the UAE and home to the world's fastest roller coaster — Formula Rossa at Ferrari World reaches 240 km/h.",
+  "Kuwait City": "Kuwait City's Kuwait Towers are three iconic water storage towers shaped like mosque domes — built in 1979 as symbols of the country's oil-era prosperity.",
+  "Casablanca": "Casablanca's Hassan II Mosque has the tallest minaret in the world at 210 meters and partially extends over the Atlantic Ocean.",
+  "Addis Ababa": "Addis Ababa sits at 2,355 meters elevation, making it one of the highest capital cities in the world — higher than most ski resorts.",
+  "Dakar": "Dakar is Africa's westernmost major city and was the end point of the famous Paris-Dakar rally until the event moved to South America in 2009.",
+  "Accra": "Accra hosted Africa's first televised broadcast and Ghana's independence in 1957 launched the pan-African decolonization movement.",
+  "Kinshasa": "Kinshasa is the second-largest French-speaking city in the world — by 2050 it's projected to have more French speakers than Paris.",
+  "Luanda": "Luanda is frequently ranked one of the most expensive cities in the world for expatriates — a bottle of water in a hotel can cost over $10.",
+  "Algiers": "Algiers' historic Casbah is a UNESCO World Heritage site where streets are so narrow and winding that French colonial troops gave up mapping them.",
+  "Tunis": "Tunis is the site of ancient Carthage, Rome's greatest rival — the Romans were so afraid of Carthage that they destroyed it twice, in 146 BC and again in 439 AD.",
+  "Bogotá": "Bogotá sits at 2,640 meters above sea level and shuts down nearly 120 km of streets to cars every Sunday for 'Ciclovía' — the world's largest open street event.",
+  "Medellín": "Medellín was once the world's most dangerous city during the Escobar era — it's now considered a model of urban transformation with outdoor escalators climbing hillside neighborhoods.",
+  "Lima": "Lima is the second-largest desert city in the world after Cairo — it gets only 1 cm of rain per year, yet fog-collection nets provide water to outlying slums.",
+  "Santiago": "Santiago sits in the shadow of the Andes and has some of the best views of snow-capped mountains from downtown of any major city — visible on most clear winter days.",
+  "Caracas": "Caracas has the longest cable car system in the Americas — built in 2010 to connect hillside neighborhoods to the metro system below.",
+  "Quito": "Quito is the highest official capital city in the world at 2,850 meters and has the best-preserved historic center in Latin America.",
+  "La Paz": "La Paz, at 3,650 meters, is the highest administrative capital in the world and has a cable car system that's used as public transit to move commuters across the city.",
+  "Montevideo": "Montevideo has the longest sidewalk in the world — La Rambla stretches for over 22 km along the coast of the Río de la Plata estuary.",
+  "Melbourne": "Melbourne is the only city in Australia with a tram network — the largest urban tram network in the world at 250 km of track.",
+  "Auckland": "Auckland is built on 48 volcanoes — all currently dormant — and sits on an isthmus between two large harbors, earning the nickname 'City of Sails'.",
+  "Wellington": "Wellington is the world's southernmost national capital and is famous for being so windy that downtown buildings are required to have wind-resistant designs.",
+  "Perth": "Perth is the most isolated major city in the world — its closest major neighbor is Adelaide, over 2,100 km away — it's closer to Jakarta than Sydney.",
+  "Brisbane": "Brisbane has hosted the Commonwealth Games, Expo 88, and will host the 2032 Summer Olympics — making it a major global events destination.",
+  "Kyoto": "Kyoto was spared U.S. atomic bombing in World War II specifically because the Secretary of War had honeymooned there and lobbied personally to protect it.",
+  "Brasília": "Brasília was designed from scratch in 1960 as Brazil's new capital — seen from above, the entire city is shaped like an airplane.",
+  "Curitiba": "Curitiba invented the bus rapid transit (BRT) system in 1974 — the model has since been copied by over 300 cities worldwide.",
+  "Manaus": "Manaus is a city of 2.7 million deep in the Amazon rainforest — it can only be reached by boat or plane since no roads connect it to the rest of Brazil.",
+  "Fortaleza": "Fortaleza has some of the most consistent warm temperatures in the world — the average temperature range across the entire year varies less than 2°C.",
+  "Cancun": "Cancun was a nearly uninhabited sandbar until 1970, when the Mexican government selected it by computer to become a planned tourist city — now it hosts 6 million visitors per year.",
+  "Panama City": "Panama City is the only capital city in the world with a rainforest (Soberanía National Park) within its limits — home to over 500 bird species.",
+  "Guatemala City": "Guatemala City has been destroyed by earthquakes so many times that the capital has had to relocate twice — it's currently surrounded by three active volcanoes.",
+  "San Jose": "San José is in the 'Central Valley' of Costa Rica — the country that abolished its army in 1948, using the savings to fund universal education and healthcare.",
+  "Anchorage": "Anchorage is home to the busiest float-plane base in the world — Lake Hood Seaplane Base handles over 190 flights per day during summer.",
+  "Phoenix": "Phoenix is the largest capital city in the U.S. by population, and its metro area is larger than the entire state of Connecticut.",
+  "Las Vegas": "Las Vegas has more hotel rooms than any other city on Earth — over 150,000 rooms in 335+ hotels — and consumes enough electricity to power a country of 2 million.",
+  "Denver": "Denver is called the 'Mile High City' because it's exactly 1,609 meters (1 mile) above sea level — a special step on the Colorado State Capitol marks the exact point.",
+  "Minneapolis": "Minneapolis has 22 natural lakes within its city limits and 13 km of enclosed skyways connecting 80 blocks of downtown — essential for its brutal winters.",
+  "New Orleans": "New Orleans is below sea level in many parts — the city sits in a natural bowl protected by levees, which is why Hurricane Katrina caused such devastating flooding in 2005.",
+  "Portland": "Portland is one of the greenest cities in America — over 92% of its power comes from renewable sources and it has more independent bookstores per capita than any U.S. city.",
+  "Detroit": "Detroit produced the first mass-assembled automobile (the Ford Model T in 1908) and at one point was the fourth-largest U.S. city before its industrial decline.",
+  "Pretoria": "Pretoria is one of three capitals of South Africa — Cape Town handles legislation, Pretoria the executive, and Bloemfontein the judiciary, a system unique in the world.",
+  "Durban": "Durban has the largest ethnic Indian population outside of India — over one million people descended from 19th-century indentured laborers, creating unique Indo-African culture.",
+  "Harare": "Harare sits at 1,483 meters elevation which gives it a subtropical climate despite being in southern Africa — it's locally known as the 'Sunshine City'.",
+  "Mombasa": "Mombasa is one of the oldest continuously inhabited cities in East Africa — Arab traders established it over 1,000 years ago as a gateway to inland Africa.",
+  "Kampala": "Kampala is built on seven hills, just like Rome, and Uganda has been called the 'Pearl of Africa' — a nickname given by Winston Churchill in 1908.",
+  "Dar es Salaam": "Dar es Salaam means 'house of peace' in Arabic and is one of the fastest-growing cities in the world, projected to have over 20 million people by 2050.",
+  "Khartoum": "Khartoum sits at the meeting point of the Blue Nile and White Nile — you can see the two distinctly colored rivers merge from the 'Al-Mogran' confluence.",
+  "Tripoli": "Tripoli was founded by Phoenicians around 700 BC and its old city (medina) contains Roman, Byzantine, Islamic, and Italian colonial architecture layered on top of each other.",
+  "Ankara": "Ankara became Turkey's capital in 1923 when Atatürk chose it over Istanbul to symbolize a break from the Ottoman past — the population has grown from 75,000 to over 5 million.",
+  "Izmir": "Izmir was known as Smyrna in ancient times and is often considered the birthplace of Homer — the poet who wrote the Iliad and Odyssey.",
+  "Amman": "Amman is built on seven hills (originally) and has ancient Roman ruins right in the city center — including one of the best-preserved Roman amphitheaters in the world.",
+  "Beirut": "Beirut has been destroyed and rebuilt seven times throughout history — it was once called the 'Paris of the Middle East' for its vibrant culture and nightlife.",
+  "Damascus": "Damascus is one of the oldest continuously inhabited cities in the world — people have lived here for over 11,000 years, and the Street Called Straight is mentioned in the Bible.",
+  "Muscat": "Muscat has strict urban planning laws — no buildings may be taller than 10 stories (except in certain business districts), preserving the traditional Arabian skyline.",
+  "Baku": "Baku is 28 meters below sea level, making it the lowest-lying capital city in the world, and its Flame Towers light up at night to resemble burning fire.",
+  "Tashkent": "Tashkent's metro stations are considered some of the most beautiful in the world — previously forbidden to photograph because they were designed as nuclear bomb shelters.",
+  "Almaty": "Almaty means 'full of apples' in Kazakh — the city is near the Tian Shan mountains where wild apples originated before spreading around the world.",
+  "Novosibirsk": "Novosibirsk is the third-largest city in Russia and the largest city founded entirely in the 20th century — built specifically because the Trans-Siberian Railway needed a junction.",
+  "Yekaterinburg": "Yekaterinburg is where Russia's last Tsar, Nicholas II, and his family were executed in 1918 — today the Church on the Blood marks the exact site.",
+  "Saint Petersburg": "Saint Petersburg was built on swampland on the orders of Peter the Great starting in 1703 — over 100,000 workers died during its construction in harsh conditions.",
+  "Kyiv": "Kyiv is over 1,500 years old and predates Moscow by centuries — it was the original capital of Kievan Rus, the medieval state that preceded both Russia and Ukraine.",
+  "Minsk": "Minsk was completely destroyed in World War II — 85% of the city was demolished — and then rebuilt in classic Stalinist neoclassical style you can still see today.",
+  "Warsaw": "Warsaw's entire old town was reconstructed after WWII using Canaletto's 18th-century paintings as a reference — it's now a UNESCO World Heritage site.",
+  "Krakow": "Krakow is home to Europe's oldest continuously operating university — Jagiellonian University, founded in 1364 — where Nicolaus Copernicus was a student.",
+  "Prague": "Prague Castle is the largest ancient castle complex in the world, covering over 70,000 square meters and dominating the city's skyline for over 1,000 years.",
+  "Budapest": "Budapest has the second-oldest metro system in the world (after London's) and is built on over 100 thermal springs, feeding its famous bath culture.",
+  "Bucharest": "Bucharest's Palace of Parliament is the heaviest administrative building in the world at 4 million tons and the second-largest after the Pentagon.",
+  "Sofia": "Sofia is one of Europe's oldest cities — the Bulgarian capital has been continuously inhabited for over 7,000 years, making it older than Rome.",
+  "Belgrade": "Belgrade has been destroyed and rebuilt 44 times in its 7,000-year history — more than any other major city in Europe.",
+  "Zagreb": "Zagreb has more museums per capita than most European capitals, including the uniquely themed Museum of Broken Relationships with exhibits sent in from around the world.",
+  "Gothenburg": "Gothenburg has the largest amusement park in Scandinavia (Liseberg) and the city's Volvo assembly plant produces one of the safest car brands in the world.",
+  "Tallinn": "Tallinn's medieval old town is one of the best-preserved in Northern Europe — completely walkable with original 13th-century walls and towers still standing.",
+  "Riga": "Riga has over 750 Art Nouveau buildings — the largest concentration in any single city in the world — earning it UNESCO World Heritage status.",
+  "Vilnius": "Vilnius has one of the largest medieval old towns in Eastern Europe and an eccentric district called Užupis that declared itself an independent republic (with its own constitution) on April 1, 1997.",
+  "Copenhagen": "Copenhagen is a cycling capital — over 62% of residents commute by bike daily, and the city's goal is to become the world's first carbon-neutral capital by 2025.",
+  "Oslo": "Oslo is one of the fastest-growing capitals in Europe and holds the distinction of having more electric vehicles per capita than any major city in the world.",
+  "Helsinki": "Helsinki is the northernmost capital in the EU and holds the record for most saunas per capita — there are over 3 million saunas in Finland for just 5.5 million people.",
+  "Stockholm": "Stockholm is built across 14 islands connected by 57 bridges — it's known as the 'Venice of the North' and 30% of the city is waterways.",
+  "Zurich": "Zurich has consistently ranked among the world's highest-quality-of-life cities and is home to the world's biggest stock exchange for precious metals.",
+  "Geneva": "Geneva hosts more international organizations than any other city — over 250 NGOs and 40+ UN agencies, including the headquarters of the Red Cross.",
+  "Dublin": "Dublin has more Nobel Prize-winning writers per capita than any other city — including Yeats, Shaw, Beckett, and Heaney, all within a few square kilometers.",
+  "Edinburgh": "Edinburgh hosts the world's largest arts festival — the Edinburgh Festival Fringe — which sees over 3 million ticket sales for 50,000+ performances every August.",
+  "Manchester": "Manchester was the world's first industrial city during the Industrial Revolution and is the birthplace of the modern computer, the first stored-program computer running there in 1948.",
+  "Birmingham": "Birmingham has more canals than Venice — 56 km of navigable waterways — a legacy of its 18th-century role as the workshop of the world.",
+  "Hamburg": "Hamburg has more bridges (2,500+) than any other city in the world — more than Amsterdam, Venice, and London combined — all crossing its rivers and canals.",
+  "Frankfurt": "Frankfurt is home to the European Central Bank and has one of the largest financial districts outside of New York and London — earning it the nickname 'Mainhattan'.",
+  "Munich": "Munich hosts the world's largest beer festival — Oktoberfest — which draws 6 million visitors to consume 7 million liters of beer over 16 days each year.",
+  "Cologne": "Cologne Cathedral took 632 years to build (1248–1880) and is one of the few major cathedrals to survive WWII mostly intact — despite being hit by 14 aerial bombs.",
+  "Brussels": "Brussels is the de facto capital of the European Union and has one of the most diverse populations in Europe — over 60% of residents were born abroad.",
+  "Rotterdam": "Rotterdam has the largest port in Europe, handling over 470 million tons of cargo per year — and its modernist architecture earned it the nickname 'Manhattan on the Meuse'.",
+  "Luxembourg": "Luxembourg is the smallest capital in the EU but has the highest GDP per capita in the world — residents earn an average of over $120,000 USD per year.",
+  "Valencia": "Valencia is the birthplace of paella, Spain's most famous dish, and hosts 'Las Fallas' — a week-long festival where giant sculptures are ritually burned each March.",
+  "Seville": "Seville is the hottest large city in Western Europe — summer temperatures regularly exceed 40°C, and the city was the first in the world to give heatwaves official names.",
+  "Milan": "Milan is Italy's fashion capital and hosts four fashion weeks per year — the city has more Michelin-starred restaurants per capita than any other in Italy.",
+  "Naples": "Naples is the birthplace of pizza — the classic Margherita was invented there in 1889 to honor Queen Margherita with Italian flag colors (red tomato, white mozzarella, green basil).",
+  "Turin": "Turin was Italy's first capital after unification in 1861 and produced Italy's first automobile — it remains home to the Fiat headquarters.",
+  "Florence": "Florence invented the Renaissance — Medici patronage produced Michelangelo, Leonardo da Vinci, and Botticelli, transforming European art forever.",
+  "Porto": "Porto gave its name to port wine and to Portugal itself — the city's wine cellars in Vila Nova de Gaia have been aging port wine for over 300 years.",
+  "Thessaloniki": "Thessaloniki has the largest preserved Jewish quarter outside Israel from pre-Holocaust Europe — once 50% of the city's population was Jewish.",
+  "Nice": "Nice has the highest concentration of wealthy residents on the French Riviera and a pebble beach stretching 7 km along the Promenade des Anglais.",
+  "Marseille": "Marseille is France's oldest city — founded by Greeks as Massalia around 600 BC — predating Paris by over 700 years.",
+  "Lyon": "Lyon is the gastronomic capital of France with over 4,000 restaurants and is the birthplace of cinema — the Lumière brothers invented motion pictures there in 1895.",
+  "Quebec City": "Quebec City is the only city in North America with fortified walls still intact — a UNESCO World Heritage site and the heart of French-speaking Canada.",
+  "Ottawa": "Ottawa is the second-coldest capital city in the world (after Ulaanbaatar, Mongolia), with winter temperatures regularly dropping below -25°C.",
+  "Calgary": "Calgary hosts the largest outdoor rodeo in the world — the Calgary Stampede draws 1.2 million visitors to its '10 days of Western heritage' each July.",
+  "Edmonton": "Edmonton is home to the West Edmonton Mall, which was the world's largest shopping center from 1981 to 2004 — it has a full water park, roller coasters, and an ice rink.",
+  "Atlanta": "Atlanta's Hartsfield-Jackson Airport is the busiest airport in the world, handling over 100 million passengers per year — more than any other city.",
+  "Boston": "Boston is home to America's oldest college (Harvard, 1636), oldest subway (1897), and oldest continuously operating restaurant (Union Oyster House, 1826).",
+  "Philadelphia": "Philadelphia was the U.S. capital from 1790 to 1800 and is where both the Declaration of Independence and the Constitution were signed.",
+  "Washington DC": "Washington DC has no state status — it's a federal district of 700,000 people with no voting representation in Congress, a unique situation among world capitals.",
+  "Miami": "Miami has the largest concentration of Art Deco buildings in the world — over 960 structures in South Beach alone, protected as a historic district.",
+  "Houston": "Houston is the most diverse large city in the U.S. — over 145 languages are spoken, and NASA's Mission Control has operated every American human spaceflight from here since 1961.",
+  "Dallas": "Dallas-Fort Worth has more shopping centers per capita than any U.S. metro, and the Dallas/Fort Worth airport is larger in area than the entirety of Manhattan.",
+  "Austin": "Austin has the most live music venues per capita of any U.S. city and its unofficial slogan is 'Keep Austin Weird' — a movement that started in the early 2000s.",
+  "Mecca": "Mecca receives over 2 million pilgrims during the Hajj each year — the world's largest annual human gathering — and is closed to non-Muslims year-round.",
+  "Jeddah": "Jeddah is the gateway to Mecca and features King Fahd's Fountain — the tallest water fountain in the world — which shoots water 312 meters into the air.",
+  "Alexandria": "Alexandria was founded by Alexander the Great in 331 BC and was once home to the Great Library — the largest collection of human knowledge in the ancient world.",
+  "Rabat": "Rabat is Morocco's capital but less-visited than Marrakech or Casablanca — its medina and Kasbah are UNESCO-listed and far less touristy than its famous neighbors.",
+  "Abuja": "Abuja was purpose-built as Nigeria's capital in 1991 to replace Lagos — the central Aso Rock is a 400-meter monolith that dominates the city's skyline.",
+  "Kano": "Kano has been a major trading hub for over 1,000 years — the ancient Kurmi Market, established around 1463, is still operating today.",
+  "Abidjan": "Abidjan is often called the 'Paris of West Africa' for its French colonial architecture and cosmopolitan vibe — it's the economic capital of Ivory Coast.",
+  "Santo Domingo": "Santo Domingo is the oldest continuously inhabited European-founded city in the Americas — established by Columbus's brother in 1496.",
+  "San Juan": "San Juan is the oldest city under U.S. jurisdiction — its old walled city, established in 1521, predates Jamestown by 86 years.",
+  "Kingston": "Kingston has the seventh-largest natural harbor in the world and is the birthplace of reggae music — Bob Marley's museum remains a major cultural landmark.",
+  "San Salvador": "San Salvador sits in the shadow of the active San Salvador volcano and has been destroyed by earthquakes multiple times — its historic center has been rebuilt over and over.",
+  "Guayaquil": "Guayaquil is Ecuador's largest and most populous city — its riverside Malecón 2000 is one of Latin America's most ambitious urban renewal projects.",
+  "Cali": "Cali is the salsa music capital of the world — the city hosts the world's largest salsa festival and has over 150 salsa clubs within its limits.",
+  "Asunción": "Asunción is one of the oldest cities in South America — founded in 1537 and known as the 'Mother of Cities' because expeditions launched from here founded Buenos Aires and other capitals.",
+  "Canberra": "Canberra was purpose-built as a compromise capital between rivals Sydney and Melbourne — it was designed in a 1912 international competition won by American architect Walter Burley Griffin.",
+  "Adelaide": "Adelaide is known as the 'City of Churches' and is one of the only major cities in the world built on a perfect grid pattern — designed by Colonel William Light in 1837.",
+  "Chiang Mai": "Chiang Mai was the capital of the Lanna Kingdom for 250 years and has over 300 Buddhist temples — more than anywhere else in Thailand.",
+  "Cebu": "Cebu is where Ferdinand Magellan landed in 1521 during the first circumnavigation of the world — he was killed in battle there weeks later.",
+  "Surabaya": "Surabaya is Indonesia's second-largest city and a major naval base — the city's name comes from a legend about a fight between a shark (sura) and a crocodile (baya).",
+  "Bandung": "Bandung is at 768 meters elevation and has a cool climate year-round — Dutch colonists called it 'Paris van Java' for its European feel and broad boulevards.",
+  "Yangon": "Yangon was Myanmar's capital until 2006 when the government abruptly moved to purpose-built Naypyidaw — 320 km to the north — for reasons that remain unclear.",
+  "Phnom Penh": "Phnom Penh's Royal Palace complex contains the Silver Pagoda, whose floor is made of over 5,000 solid silver tiles weighing more than 1 kg each.",
+  "Jaipur": "Jaipur is called the 'Pink City' because its entire old quarter was painted pink in 1876 to welcome the Prince of Wales — the color has been maintained by law ever since.",
+  "Pune": "Pune has been called the 'Oxford of the East' for its concentration of universities — it also produces most of India's Bollywood background music.",
+  "Hyderabad": "Hyderabad produced the Koh-i-Noor and Hope Diamond — the city's Nizam was once considered the richest man in the world, with a fortune worth over $230 billion in today's money.",
+  "Chennai": "Chennai has the second-longest urban beach in the world — Marina Beach stretches 13 km along the Bay of Bengal coast.",
+  "Ahmedabad": "Ahmedabad was India's first UNESCO World Heritage City and is famous as the birthplace of Mahatma Gandhi's Salt March resistance against British rule.",
+  "Kolkata": "Kolkata was the capital of British India until 1911 and is home to the world's only hand-pulled rickshaws still in regular operation — a legacy being phased out.",
+  "Mumbai": "Mumbai's Dabbawala lunchbox delivery system moves 200,000+ meals per day with less than 1 error per 6 million deliveries — Harvard Business School studies this logistics marvel.",
+  "Bangalore": "Bangalore is India's Silicon Valley — over 35% of India's tech workforce lives there, and the city produces more IT jobs than any other in the world.",
+  "Lahore": "Lahore was the capital of the Mughal Empire during its golden age — its fort and gardens are UNESCO-listed, and the city is Pakistan's cultural heart.",
+  "Islamabad": "Islamabad is a planned capital built entirely in the 1960s — it's known as one of the most orderly, greenest, and cleanest capitals in South Asia.",
+  "Monterrey": "Monterrey is Mexico's industrial powerhouse and is known as the 'Sultan of the North' — it produces over 30% of Mexico's GDP from just 5% of its population.",
+  "Guadalajara": "Guadalajara is the birthplace of mariachi music and tequila — the nearby town of Tequila is a UNESCO World Heritage site for its agave fields.",
+  "Tijuana": "Tijuana has the world's busiest border crossing — the San Ysidro port — where over 50 million people pass between Mexico and the U.S. each year.",
+  "Salvador": "Salvador was Brazil's first capital (1549–1763) and has the largest African-descended population outside of Africa — its culture, music, and cuisine deeply reflect African heritage.",
+  "Belo Horizonte": "Belo Horizonte was Brazil's first planned modern city (1897) and produced the architectural legend Oscar Niemeyer, who later designed Brasília.",
+  "Recife": "Recife is called the 'Brazilian Venice' for its 50+ bridges and island districts — it has more waterways than any other Brazilian city.",
+  "Córdoba": "Córdoba is Argentina's second-largest city and home to the oldest university in the country — founded in 1613, even before many major U.S. universities existed."
+};
+
+function buildShareText(won) {
+  const emoji = won ? '🏆' : '💀';
+  const result = won ? `${guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`;
+  const FIELDS = ['region','population','size','avgTemp','language','currency','coast','hemisphere'];
+  const rows = guesses.map(g => {
+    return FIELDS.map(f => {
+      const { status } = compareCategory(f, g[f], target[f]);
+      return status === 'match' ? '🟩' : status === 'close' ? '🟨' : '⬛';
+    }).join('');
+  }).join('\n');
+  return `Cityle ${emoji} ${result}\n\n${rows}\n\ncityle.game`;
+}
+
+function endGame(won) {
+  gameOver = true;
+  document.getElementById('guess-input').disabled = true;
+  document.getElementById('submit-btn').disabled = true;
+  document.getElementById('hint-btn').disabled = true;
+
+  if (won) launchConfetti();
+
+  const fact = CITY_FACTS[target.name] ||
+    `${target.name} is one of the most significant cities in ${target.region}, with a rich history and culture all its own.`;
+
+  const bannerEl = document.getElementById('end-banner');
+
+  if (won) {
+    bannerEl.innerHTML = `
+      <div class="win-banner">
+        <div class="banner-title">You Got It!</div>
+        <div class="banner-text">Found <strong>${target.name}, ${target.country}</strong> in ${guesses.length} ${guesses.length === 1 ? 'guess' : 'guesses'}</div>
+        <div class="banner-actions">
+          <button class="banner-btn primary" id="new-game-btn">Play Again</button>
+          <button class="banner-btn" id="share-btn">📋 Share Results</button>
+        </div>
+      </div>
+      <div class="fun-fact-card">
+        <div class="fun-fact-label">✦ Did You Know</div>
+        <div class="fun-fact-text">${fact}</div>
+      </div>
+    `;
+  } else {
+    bannerEl.innerHTML = `
+      <div class="lose-banner">
+        <div class="banner-title">Out of Guesses</div>
+        <div class="banner-text">The city was <strong>${target.name}, ${target.country}</strong></div>
+        <div class="banner-actions">
+          <button class="banner-btn primary" id="new-game-btn">Try Again</button>
+          <button class="banner-btn" id="share-btn">📋 Share Results</button>
+        </div>
+      </div>
+      <div class="fun-fact-card">
+        <div class="fun-fact-label">✦ Did You Know</div>
+        <div class="fun-fact-text">${fact}</div>
+      </div>
+    `;
+  }
+
+  document.getElementById('new-game-btn').addEventListener('click', startGame);
+  document.getElementById('share-btn').addEventListener('click', () => {
+    const txt = buildShareText(won);
+    const copy = () => {
+      const btn = document.getElementById('share-btn');
+      btn.textContent = '✓ Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = '📋 Share Results'; btn.classList.remove('copied'); }, 2000);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(copy).catch(() => {
+        const ta = document.createElement('textarea');
+        ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        copy();
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+      copy();
+    }
+  });
+
+  document.getElementById('status-text').textContent = won ? 'Victory' : 'Defeat';
+}
+
+function submitGuess() {
+  if (gameOver) return;
+  const input = document.getElementById('guess-input');
+  const errMsg = document.getElementById('error-msg');
+  const val = input.value.trim().toLowerCase();
+  if (!val) { errMsg.textContent = '• Enter a city name'; return; }
+  const city = CITIES.find(c => c.name.toLowerCase() === val);
+  if (!city) { errMsg.textContent = '• Not in the atlas — try another'; return; }
+  if (guesses.find(g => g.name.toLowerCase() === val)) { errMsg.textContent = '• Already guessed'; return; }
+  errMsg.textContent = '';
+  guesses.push(city);
+  renderGuess(city);
+  input.value = '';
+  hideAutocomplete();
+  updateStatus();
+
+  if (city.name === target.name) {
+    setTimeout(() => endGame(true), 700);
+  } else if (guesses.length >= MAX_GUESSES) {
+    setTimeout(() => endGame(false), 700);
+  }
+}
+
+/* =========== AUTOCOMPLETE =========== */
+const input = document.getElementById('guess-input');
+const autocomplete = document.getElementById('autocomplete');
+let activeIdx = -1;
+
+function showAutocomplete() {
+  const val = input.value.trim().toLowerCase();
+  if (!val) { hideAutocomplete(); return; }
+  const matches = CITIES
+    .filter(c => c.name.toLowerCase().includes(val))
+    .filter(c => !guesses.find(g => g.name === c.name))
+    .slice(0, 7);
+  if (matches.length === 0) { hideAutocomplete(); return; }
+  autocomplete.innerHTML = matches.map(c =>
+    `<div class="autocomplete-item" data-name="${c.name}"><span>${c.name}</span><span class="country-tag">${c.country}</span></div>`
+  ).join('');
+  autocomplete.classList.add('show');
+  activeIdx = -1;
+  autocomplete.querySelectorAll('.autocomplete-item').forEach(el => {
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      input.value = el.dataset.name;
+      hideAutocomplete();
+      submitGuess();
+    });
+  });
+}
+
+function hideAutocomplete() { autocomplete.classList.remove('show'); activeIdx = -1; }
+
+input.addEventListener('input', showAutocomplete);
+input.addEventListener('blur', () => setTimeout(hideAutocomplete, 200));
+
+document.getElementById('submit-btn').addEventListener('click', submitGuess);
+input.addEventListener('keydown', (e) => {
+  const items = autocomplete.querySelectorAll('.autocomplete-item');
+  if (e.key === 'ArrowDown' && items.length) {
+    e.preventDefault();
+    activeIdx = (activeIdx + 1) % items.length;
+    items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+  } else if (e.key === 'ArrowUp' && items.length) {
+    e.preventDefault();
+    activeIdx = (activeIdx - 1 + items.length) % items.length;
+    items.forEach((el, i) => el.classList.toggle('active', i === activeIdx));
+  } else if (e.key === 'Enter') {
+    if (activeIdx >= 0 && items[activeIdx]) {
+      input.value = items[activeIdx].dataset.name;
+      hideAutocomplete();
+    }
+    submitGuess();
+  } else if (e.key === 'Escape') {
+    hideAutocomplete();
+  }
+});
+
+/* =========== MODALS =========== */
+function openAtlas() {
+  const grid = document.getElementById('city-grid');
+  const count = document.getElementById('pantry-count');
+  count.textContent = `${CITIES.length} cities in the atlas`;
+  const sorted = [...CITIES].sort((a, b) => a.name.localeCompare(b.name));
+  grid.innerHTML = sorted.map(c => `
+    <div class="city-item">
+      <div>${c.name}</div>
+      <div class="country">${c.country}</div>
+    </div>
+  `).join('');
+  document.getElementById('pantry-overlay').classList.add('open');
+}
+
+document.getElementById('pantry-btn').addEventListener('click', openAtlas);
+document.getElementById('pantry-close').addEventListener('click', () => {
+  document.getElementById('pantry-overlay').classList.remove('open');
+});
+document.getElementById('pantry-overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('how-to-btn').addEventListener('click', () => {
+  document.getElementById('how-to-overlay').classList.add('open');
+});
+document.getElementById('how-to-close').addEventListener('click', () => {
+  document.getElementById('how-to-overlay').classList.remove('open');
+});
+document.getElementById('how-to-overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+document.getElementById('hint-btn').addEventListener('click', () => {
+  if (gameOver) return;
+  const cont = CONTINENT[target.region] || 'Unknown';
+  document.getElementById('hint-continent').textContent = cont;
+  document.getElementById('hint-sub').textContent = `Region: ${target.region}`;
+  document.getElementById('hint-overlay').classList.add('open');
+});
+document.getElementById('hint-close').addEventListener('click', () => {
+  document.getElementById('hint-overlay').classList.remove('open');
+});
+document.getElementById('hint-overlay').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+
+/* =========== INIT =========== */
+generateStars();
+startGame();
+</script>
+</body>
+</html>
